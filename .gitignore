@@ -1,0 +1,40 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+*.egg
+
+# ML artifacts
+backend/ml/models/*.pkl
+backend/ml/models/*.joblib
+mlflow/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Data (jangan commit CSV besar ke git)
+data/*.csv
+data/*.parquet

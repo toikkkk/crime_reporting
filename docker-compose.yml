@@ -1,0 +1,87 @@
+version: "3.9"
+
+services:
+  # ─── PostgreSQL lokal (development only) ───────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: crime_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crime_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crime_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-crime_reporting}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crime_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── MLflow Tracking Server ─────────────────────────────────────
+  mlflow:
+    image: python:3.11-slim
+    container_name: crime_mlflow
+    restart: unless-stopped
+    working_dir: /mlflow
+    command: >
+      bash -c "pip install mlflow psycopg2-binary -q &&
+               mlflow server
+               --backend-store-uri postgresql://${POSTGRES_USER:-crime_user}:${POSTGRES_PASSWORD:-crime_pass}@db:5432/${POSTGRES_DB:-crime_reporting}
+               --default-artifact-root /mlflow/artifacts
+               --host 0.0.0.0
+               --port 5000"
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ─── FastAPI Backend ─────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: crime_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-crime_user}:${POSTGRES_PASSWORD:-crime_pass}@db:5432/${POSTGRES_DB:-crime_reporting}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_KEY: ${SUPABASE_KEY:-}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      SECRET_KEY: ${SECRET_KEY:-changeme-in-production}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - model_artifacts:/app/ml/models
+    depends_on:
+      db:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
+
+  # ─── Next.js Frontend ────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: crime_frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  mlflow_artifacts:
+  model_artifacts:
