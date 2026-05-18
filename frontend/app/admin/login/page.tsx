@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ThemeToggle } from '../../components/ThemeToggle'
 import './login.css'
 
 const VALID_CREDENTIALS = {
@@ -41,6 +42,10 @@ export default function LoginPage() {
 
   return (
     <div className="login-bg">
+
+      <div className="login-toggle">
+        <ThemeToggle />
+      </div>
 
       {/* ── Logo ── */}
       <div className="login-logo">

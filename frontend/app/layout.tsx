@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
-import { Inter, JetBrains_Mono } from 'next/font/google'
+import { DM_Sans, JetBrains_Mono } from 'next/font/google'
+import { ThemeProvider } from './components/ThemeProvider'
 import './globals.css'
 
-/* ── Font loading via next/font (zero layout shift, self-hosted) ── */
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-inter',
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-dm-sans',
   display: 'swap',
 })
 
@@ -19,18 +19,17 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'SIPEDULI — Sistem Pelaporan Kejahatan Terpadu',
-  description:
-    'Platform pelaporan kejahatan resmi yang terhubung langsung dengan aparat berwenang. Setiap laporan dianalisis dan diprioritaskan secara otomatis.',
+  description: 'Platform pelaporan kejahatan resmi yang terhubung langsung dengan aparat berwenang.',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className={`${inter.variable} ${jetbrains.variable}`}>
-      <body>{children}</body>
+    <html lang="id" className={`${dmSans.variable} ${jetbrains.variable}`} suppressHydrationWarning>
+      <body>
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   )
 }

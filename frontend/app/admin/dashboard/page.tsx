@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { ThemeToggle } from '../../components/ThemeToggle'
 import './dashboard.css'
 
 /* ============================================================
@@ -285,6 +286,8 @@ function TopBar({ active, onLogout }: { active: NavKey; onLogout: () => void }) 
           <span className="avatar">AP</span>
           <span className="role">Petugas</span>
         </button>
+        <span className="tb-divider" />
+        <ThemeToggle />
         <span className="tb-divider" />
         <button
           onClick={onLogout}

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import { ThemeToggle } from '../components/ThemeToggle'
 
 /* ============================================================
    TYPES
@@ -704,6 +705,7 @@ export default function LaporanPage() {
             <span className="mono text-[11px] uppercase tracking-[0.16em] text-gray-400 hidden sm:block">
               Portal Pelaporan
             </span>
+            <ThemeToggle />
             <Link
               href="/"
               className="mono text-[11px] uppercase tracking-[0.16em] text-gray-500 hover:text-ink

@@ -9,7 +9,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif; font-weight: 400; color: var(--ink); -webkit-font-smoothing: antialiased; }
+html, body { margin: 0; padding: 0; font-family: var(--font-dm-sans), system-ui, sans-serif; font-weight: 400; color: var(--ink); -webkit-font-smoothing: antialiased; }
 
 @keyframes loginSlideUp {
   from { opacity: 0; transform: translateY(24px); }
@@ -37,6 +37,13 @@ html, body { margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif;
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
+  position: relative;
+}
+
+.login-toggle {
+  position: absolute;
+  top: 16px;
+  right: 24px;
 }
 
 /* ---- Logo above card ---- */
@@ -123,7 +130,7 @@ html, body { margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif;
   border-radius: 4px;
   padding: 12px 16px;
   font-size: 15px;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
   color: var(--ink);
   background: #fff;
   transition: border-color 200ms ease;
@@ -176,7 +183,7 @@ html, body { margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif;
   border: none;
   border-radius: 4px;
   padding: 16px 24px;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.14em;
@@ -259,3 +266,28 @@ html, body { margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif;
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---- Dark mode ---- */
+html.dark body { background: #141414; color: #f0f0f0; }
+html.dark .login-bg { background: #141414; }
+html.dark .login-logo-box { border-color: rgba(255,255,255,0.3); }
+html.dark .login-logo-name { color: #f0f0f0; }
+html.dark .login-logo-sub { color: #6b7280; }
+html.dark .login-card { background: #1c1c1c; border-color: #2f2f2f; }
+html.dark .login-card-tag { color: #9ca3af; }
+html.dark .login-card-title { color: #f0f0f0; }
+html.dark .login-label { color: #9ca3af; }
+html.dark .login-input { background: #1c1c1c; border-color: #3f3f46; color: #f0f0f0; }
+html.dark .login-input:focus { border-color: #f0f0f0; }
+html.dark .login-input::placeholder { color: #6b7280; }
+html.dark .login-eye { color: #6b7280; }
+html.dark .login-eye:hover { color: #f0f0f0; }
+html.dark .login-error { background: #2d0a0a; border-color: #7f1d1d; color: #fca5a5; }
+html.dark .login-btn { background: #f5f5f5; color: #0a0a0a; }
+html.dark .login-btn:hover:not(:disabled) { background: #ffffff; }
+html.dark .login-demo { border-top-color: #2f2f2f; }
+html.dark .login-demo-label { color: #6b7280; }
+html.dark .login-demo-row { color: #9ca3af; }
+html.dark .login-demo-val { color: #f0f0f0; border-bottom-color: #6b7280; }
+html.dark .login-demo-val:hover { color: #ff3030; border-bottom-color: #ff3030; }
+html.dark .login-footer { color: #6b7280; }
