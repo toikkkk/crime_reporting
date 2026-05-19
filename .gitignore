@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════
 #  SIPEDULI — Crime Reporting System
-#  .gitignore — dioptimasi untuk kolaborasi tim 3 orang
+#  .gitignore — dioptimasi untuk kolaborasi tim + Claude Code /init
 #
 #  ATURAN UMUM:
 #  ✅ Di-commit  → source code, config template, schema, docs
@@ -10,7 +10,6 @@
 
 # ───────────────────────────────────────────────────────────────
 #  RAHASIA & ENVIRONMENT VARIABLES
-#  Jangan pernah commit .env ke GitHub — gunakan .env.example
 # ───────────────────────────────────────────────────────────────
 .env
 .env.local
@@ -19,6 +18,11 @@
 .env.production
 .env.staging
 .env.test
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
 
 # Kunci & sertifikat
 *.pem
@@ -29,12 +33,12 @@
 
 # ───────────────────────────────────────────────────────────────
 #  PYTHON — VIRTUAL ENVIRONMENT
-#  Tiap anggota tim buat venv sendiri dari requirements.txt
+#  Tiap anggota tim buat venv sendiri: python -m venv env && pip install -r requirements.txt
 # ───────────────────────────────────────────────────────────────
+env/
 venv/
 venv*/
 .venv/
-env/
 ENV/
 .virtualenv/
 
@@ -45,15 +49,15 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Packaging & distribusi
+# Packaging
 *.egg
 *.egg-info/
 dist/
 build/
 .eggs/
-MANIFEST
 *.so
 *.whl
+
 
 # ───────────────────────────────────────────────────────────────
 #  PYTHON — TOOLS & TESTING
@@ -69,40 +73,55 @@ htmlcov/
 
 # ───────────────────────────────────────────────────────────────
 #  MACHINE LEARNING — MODEL ARTIFACTS
-#  Model di-regenerate dari training script, bukan di-share via git
-#  Gunakan MLflow atau shared storage (Google Drive/S3) untuk distribusi
+#  Regenerate dari notebooks/02_modeling.ipynb
+#  Distribusi via MLflow atau Google Drive
 # ───────────────────────────────────────────────────────────────
-backend/ml/models/*.pkl
-backend/ml/models/*.joblib
-backend/ml/models/*.h5
-backend/ml/models/*.pt
-backend/ml/models/*.pth
-backend/ml/models/*.onnx
-backend/ml/models/*.bin
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+*.onnx
+*.bin
 
 # MLflow tracking lokal
 mlflow.db
 mlruns/
 mlflow/
 
+# Log training
+backend/ml/notebooks/logs.log
+logs.log
+
 
 # ───────────────────────────────────────────────────────────────
 #  DATA — FILE BESAR
-#  Simpan dataset di shared storage, bukan di git
-#  (GitHub limit 100MB per file, repo jadi berat)
+#  Simpan di shared storage (Google Drive/S3), bukan di git
 # ───────────────────────────────────────────────────────────────
 data/*.csv
 data/*.parquet
 data/*.xlsx
 data/*.xls
-data/*.json
 data/*.zip
 data/*.tar.gz
+
+# File data yang nyasar ke root (harusnya di data/)
+/*.csv
+/*.parquet
+/*.xlsx
+
+
+# ───────────────────────────────────────────────────────────────
+#  DOCS — EDA VISUALIZATIONS
+#  PNG hasil notebook, bukan source code
+# ───────────────────────────────────────────────────────────────
+docs/*.png
+docs/*.jpg
+docs/*.jpeg
 
 
 # ───────────────────────────────────────────────────────────────
 #  NODE.JS / NEXT.JS
-#  Tiap anggota tim jalankan "npm install" sendiri dari package.json
 # ───────────────────────────────────────────────────────────────
 node_modules/
 **/node_modules/
@@ -112,14 +131,7 @@ frontend/.next/
 frontend/out/
 frontend/build/
 
-# Env lokal Next.js
-frontend/.env
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
-
-# Cache npm/yarn
+# Cache
 .npm
 .yarn/cache
 .yarn/unplugged
@@ -135,7 +147,7 @@ frontend/.env.production.local
 *.sqlite
 *.sqlite3
 
-# Docker named volumes (tidak perlu di-track)
+# Docker named volumes
 postgres_data/
 mlflow_artifacts/
 model_artifacts/
@@ -143,7 +155,7 @@ model_artifacts/
 
 # ───────────────────────────────────────────────────────────────
 #  JUPYTER NOTEBOOKS
-#  Notebook (.ipynb) di-commit, tapi checkpoint-nya tidak
+#  Notebook (.ipynb) di-commit, checkpoint tidak
 # ───────────────────────────────────────────────────────────────
 .ipynb_checkpoints/
 **/.ipynb_checkpoints/
@@ -157,7 +169,6 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pip-log.txt
 
 
 # ───────────────────────────────────────────────────────────────
@@ -165,18 +176,11 @@ pip-log.txt
 # ───────────────────────────────────────────────────────────────
 # macOS
 .DS_Store
-.DS_Store?
 .AppleDouble
-.LSOverride
 ._*
-.Spotlight-V100
-.Trashes
 
 # Windows
 Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
-ehthumbs_vista.db
 desktop.ini
 $RECYCLE.BIN/
 *.lnk
@@ -187,16 +191,12 @@ $RECYCLE.BIN/
 
 # ───────────────────────────────────────────────────────────────
 #  IDE — EDITOR FILES
-#  Settings personal tidak di-commit, tapi rekomendasi ekstensi boleh
 # ───────────────────────────────────────────────────────────────
-# JetBrains (PyCharm, WebStorm)
 .idea/
-
-# Vim/Nano
 *.swp
 *.swo
 
-# VS Code — ignore settings personal, tapi keep rekomendasi ekstensi
+# VS Code — ignore settings personal, keep rekomendasi ekstensi
 .vscode/*
 !.vscode/extensions.json
 !.vscode/launch.json
@@ -204,7 +204,7 @@ $RECYCLE.BIN/
 
 
 # ───────────────────────────────────────────────────────────────
-#  TEMPORARY FILES
+#  TEMPORARY & OUTPUT FILES
 # ───────────────────────────────────────────────────────────────
 *.tmp
 *.temp
@@ -214,47 +214,39 @@ $RECYCLE.BIN/
 tmp/
 temp/
 
+# File output sementara (jangan di-commit)
+struktur.txt
+
+
 # ───────────────────────────────────────────────────────────────
 #  CLAUDE CODE — TOKEN OPTIMIZATION
-#  File besar yang tidak perlu dibaca Claude Code saat /init
+#  File yang tidak perlu dibaca Claude Code saat /init
 # ───────────────────────────────────────────────────────────────
-# Lock files (bisa di-regenerate)
+# Lock files (di-regenerate otomatis)
 package-lock.json
 yarn.lock
 poetry.lock
 
-# Font & binary assets
+# Font files (binary)
 *.woff
 *.woff2
 *.ttf
 *.otf
 *.eot
-*.ico
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.svg
-*.webp
-*.mp4
-*.mp3
 
-# Notebook output (hanya baca source-nya, bukan output cell)
-# Kalau mau Claude baca notebook, hapus baris ini
-# *.ipynb
+# ⚠ CATATAN SVG: TIDAK di-ignore secara global
+# SVG di frontend/app/ adalah source code komponen (peta Indonesia, icon)
+# Hanya ignore SVG di public assets jika ada:
+# frontend/public/**/*.svg
 
-# Compiled/generated
+# Image binary (EDA docs sudah di-cover di section docs/ di atas)
+# Tidak ignore *.png/*.jpg secara global karena bisa ada di source code
+
+# Compiled/generated assets
 *.min.js
 *.min.css
 *.map
 frontend/public/
 
-# Model & data (sudah ada di atas, pastikan path-nya benar)
-*.pkl
-*.joblib
-*.csv
-*.parquet
-mlruns/
-mlflow.db
-miflow.db
-logs.log
+# Build artifacts backend
+backend/app/ml/models/
