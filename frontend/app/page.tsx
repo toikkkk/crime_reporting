@@ -16,7 +16,7 @@ interface StatusEntry { stage: number; kind: BadgeKind; cat: string; loc: string
 /* ============================================================
    HOOKS
    ============================================================ */
-function useReveal(options: RevealOptions = {}): [React.RefObject<HTMLDivElement>, boolean] {
+function useReveal(options: RevealOptions = {}): [React.RefObject<HTMLDivElement | null>, boolean] {
   const ref = useRef<HTMLDivElement>(null)
   const [shown, setShown] = useState(false)
   useEffect(() => {
@@ -31,7 +31,7 @@ function useReveal(options: RevealOptions = {}): [React.RefObject<HTMLDivElement
   return [ref, shown]
 }
 
-function useScrollProgress(ref: React.RefObject<HTMLElement>): number {
+function useScrollProgress(ref: React.RefObject<HTMLElement | null>): number {
   const [progress, setProgress] = useState(0)
   useEffect(() => {
     let ticking = false
@@ -545,12 +545,6 @@ function Footer() {
             <span className="mono font-bold text-[14px]">1717</span>
           </div>
         </div>
-        <a
-              href="/admin/login"
-              className="mono text-[11px] uppercase tracking-[0.16em] text-white/30 hover:text-white/60 mt-1 inline-block"
-            >
-              Portal Petugas →
-            </a>
       </div>
       <div className="border-t border-white/15">
         <div className="max-w-[1240px] mx-auto px-6 py-6 flex flex-col md:flex-row md:items-center justify-between gap-3">

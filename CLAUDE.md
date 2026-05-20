@@ -1,7 +1,8 @@
-# CLAUDE.md — SIPEDULI
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 > Baca file ini sepenuhnya sebelum menyentuh kode apapun.
-> Ini adalah source of truth untuk konvensi, constraint, dan status project.
 
 ---
 
@@ -9,8 +10,7 @@
 
 **SIPEDULI** — Sistem Pelaporan Kejahatan Terpadu  
 **Jenis:** Project UAS (Machine Learning + Web Service + Data Mining)  
-**GitHub:** https://github.com/toikkkk/crime_reporting.git  
-**Tim:** 3 orang — ML/Frontend (Toik), Backend (teman)
+**GitHub:** https://github.com/toikkkk/crime_reporting.git
 
 **Konsep:** Portal pelaporan kejahatan berbasis web. Masyarakat isi form → ML klasifikasi urgensi otomatis → Polisi kelola via dashboard.
 
@@ -26,18 +26,19 @@ label urgensi tersimpan di Supabase → tampil di dashboard admin
 ### Full Stack (Docker)
 ```bash
 docker-compose up -d          # Start semua service
-docker-compose down           # Stop semua service
-docker-compose logs backend   # Lihat log backend
+docker-compose down
+docker-compose logs backend
 ```
 
 ### Backend (local dev)
 ```bash
 cd backend
+# Aktifkan venv: .\venv311\Scripts\activate  (Windows, dari root)
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
-# API docs: http://localhost:8000/docs
-# Jalankan sekali: nltk.download('stopwords')
+# One-time setup: python -c "import nltk; nltk.download('stopwords')"
 ```
+API docs: `http://localhost:8000/docs`
 
 ### Frontend (local dev)
 ```bash
@@ -47,19 +48,32 @@ npm run dev    # http://localhost:3000
 npm run build
 ```
 
+> **PENTING — Next.js 16.2:** Versi ini punya breaking changes dari training data LLM.
+> Sebelum edit frontend, cek `node_modules/next/dist/docs/` untuk API yang benar.
+> Jangan asumsikan konvensi Next.js lama masih berlaku.
+> `frontend/AGENTS.md` mengandung peringatan serupa — dibaca otomatis saat bekerja di folder `frontend/`.
+
 ### Database
 ```bash
 python scripts/migrate_csv_to_db.py --env local        # CSV → PostgreSQL lokal
 python scripts/migrate_csv_to_db.py --env production   # CSV → Supabase
-python scripts/test_koneksi.py                         # Test koneksi DB
+python scripts/test_koneksi.py
 ```
-Schema awal ada di `scripts/init.sql` — diload otomatis oleh Docker saat pertama jalan.
+Schema awal: `scripts/init.sql` — diload otomatis Docker saat pertama jalan.
 
 ### ML
 ```bash
 python backend/app/ml/preprocessor.py   # Quick test preprocessing pipeline
 ```
 MLflow UI: `http://localhost:5000` (via Docker)
+
+### Env vars kritis (`.env`)
+```
+POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB
+SUPABASE_URL / SUPABASE_KEY
+SECRET_KEY
+NEXT_PUBLIC_API_URL=http://localhost:8000   # dipakai frontend Docker image
+```
 
 ---
 
@@ -74,52 +88,77 @@ MLflow UI: `http://localhost:5000` (via Docker)
 | `frontend` | 3000 | Next.js                 |
 
 ### Frontend
-- **Next.js 16.2** (App Router) + **TypeScript**
-- **TailwindCSS v4** — konfigurasi warna via `@theme` di `globals.css`, BUKAN di `tailwind.config.ts`
-- **React 19**
-- **Deployment:** Laragon (Windows, local)
+- **Next.js 16.2.6** (App Router) + **TypeScript 5** + **React 19**
+- **TailwindCSS v4** — konfigurasi warna via `@theme` di `globals.css`, **BUKAN** di `tailwind.config.ts`
 
 ### Backend
-- **FastAPI** + **Python**
+- **FastAPI 0.115** + **Python** (venv: `venv311/`)
 - **Supabase** (PostgreSQL) sebagai database
+- **SQLAlchemy 2.0** + **Alembic** untuk ORM/migrasi
+- **python-jose** + **passlib[bcrypt]** untuk auth
 
 ### ML
 - **TF-IDF** vectorizer + classifier (LinearSVC/LR/RF)
-- **File model:** `model_final.pkl`, `vectorizer.pkl`, `model_metadata.json`
-- **Input:** `deskripsi_bersih` (teks kronologi yang sudah dipreprocessing)
-- **Output:** label urgensi + confidence score
+- **Sastrawi** untuk Indonesian stemming
+- **File model:** `model_final.pkl`, `vectorizer.pkl`, `model_metadata.json` (gitignored — regenerate dari `notebooks/02_modeling.ipynb`)
+- **Input:** `deskripsi_bersih` | **Output:** label urgensi + confidence score
 
 ---
 
 ## 4. ARSITEKTUR
 
 ### Backend (`backend/app/`)
-- **`main.py`** — FastAPI entry point. Router (`laporan`, `auth`, `admin`, `predict`) masih di-comment, ditambah inkremental.
-- **`core/config.py`** — `Settings` via pydantic-settings; baca dari `.env`. Key: `DATABASE_URL`, `SUPABASE_URL`, `MLFLOW_TRACKING_URI`, `SECRET_KEY`.
-- **`ml/preprocessor.py`** — Pipeline inference production: normalisasi informal→formal → cleaning → stopword removal → stemming Sastrawi → keyword extraction. SMOTE hanya di notebook (offline).
-- **`ml/models/`** — Artifact model (gitignored; regenerate dari notebooks).
+```
+app/
+├── main.py          # FastAPI entry. Semua router masih di-comment — hanya /health & / aktif.
+├── core/config.py   # Settings via pydantic-settings. Key: DATABASE_URL, SUPABASE_URL,
+│                    #   MLFLOW_TRACKING_URI, SECRET_KEY, ALLOWED_ORIGINS
+├── api/             # Route handlers — semua __init__.py kosong, belum ada implementasi
+├── db/              # Database models & koneksi — __init__.py kosong
+├── schemas/         # Pydantic request/response schemas — __init__.py kosong
+├── services/        # Business logic — __init__.py kosong
+└── ml/
+    ├── preprocessor.py   # Production inference pipeline (lengkap, bisa dijalankan)
+    └── models/           # Model artifacts (gitignored) — di luar folder app/
+```
+
+> **Catatan path:** Model artifacts tersimpan di `backend/ml/models/` (satu level di atas `app/`),
+> bukan `backend/app/ml/models/`. Docker volume `model_artifacts` mount ke `/app/ml/models`.
 
 ### Frontend (`frontend/app/`)
-- **`page.tsx`** — Landing page publik.
-- **`laporan/page.tsx`** — Form laporan 3-step (publik).
-- **`admin/login/page.tsx`** — Login admin.
-- **`admin/dashboard/page.tsx`** — Dashboard admin (data masih hardcoded/dummy).
-- **`components/ThemeProvider.tsx`** — Context dark mode + curtain animation.
-- **`components/ThemeToggle.tsx`** — Tombol toggle moon/sun.
+```
+app/
+├── page.tsx                    # Landing page publik
+├── layout.tsx                  # Root layout (ThemeProvider ada di sini — JANGAN duplikat)
+├── globals.css                 # Global styles + Tailwind @theme
+├── laporan/
+│   ├── page.tsx                # Wrapper — hanya re-export laporan_page.tsx
+│   └── laporan_page.tsx        # Komponen utama form 3-step ('use client')
+│                               # handleSubmit() masih simulasi setTimeout + random urgensi
+│                               # generateTicketId() di sini bersifat sementara — harusnya dari DB trigger
+├── admin/
+│   ├── login/page.tsx          # Login admin
+│   └── dashboard/
+│       ├── page.tsx            # Dashboard admin — data REPORTS & NOTIFICATIONS masih hardcoded
+│       └── dashboard.css       # CSS khusus dashboard (SVG peta Indonesia, animasi panel)
+└── components/
+    ├── ThemeProvider.tsx        # Context dark mode + curtain animation
+    └── ThemeToggle.tsx          # Tombol toggle moon/sun
+```
 
 ### Database Schema (PostgreSQL)
-Lima tabel utama di `scripts/init.sql`:
-- `training_data` — Korpus training ML (dari migrasi CSV)
+Lima tabel di `scripts/init.sql`:
 - `laporan` — Laporan warga; ticket ID (`CRM-YYYY-NNNN`) auto-generate via DB trigger
+- `training_data` — Korpus training ML
 - `foto_bukti` — Foto bukti di Supabase Storage
 - `petugas` — Akun polisi/admin (bcrypt password)
-- `ml_models` — Ringkasan MLflow experiment runs untuk dashboard
+- `ml_models` — Ringkasan MLflow experiment runs
 
 PostgreSQL ENUMs:
 - `urgensi_level`: `Tinggi` / `Sedang` / `Rendah`
 - `status_laporan`: `Diterima` / `Dianalisis` / `Dalam Penyelidikan` / `Selesai` / `Ditolak`
 
-**Tabel `laporan` (schema lengkap):**
+**Tabel `laporan`:**
 ```sql
 CREATE TABLE laporan (
   id               UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -146,7 +185,7 @@ CREATE TABLE laporan (
 
 ## 5. DESIGN SYSTEM — NON-NEGOTIABLE
 
-> Jangan ubah apapun di sini tanpa diskusi. Ini constraint desain yang sudah final.
+> Jangan ubah apapun di sini tanpa diskusi.
 
 ### Warna
 ```
@@ -158,37 +197,24 @@ amber = #ffc107  → badge Sedang (hanya dashboard)
 green = #28a745  → badge Rendah (hanya dashboard)
 ```
 
-Didefinisikan di `globals.css`:
-```css
-@theme {
-  --color-ink: #0a0a0a;
-  --color-alert: #cc0000;
-}
-```
-**BUKAN** di `tailwind.config.ts`.
+Didefinisikan di `globals.css` via `@theme { --color-ink: ...; --color-alert: ...; }`.
 
 ### Tipografi
-```
-DM Sans        → semua heading dan body text
-JetBrains Mono → SEMUA label kecil uppercase (class: mono)
-```
+- `DM Sans` → heading dan body text
+- `JetBrains Mono` → SEMUA label kecil uppercase (`class="mono"`)
 
 ### Aturan Desain
-```
-- Border radius: 4px MAKSIMAL di semua elemen (class: r4)
+- Border radius: 4px maksimal (`class="r4"`)
 - Feel: government-grade, editorial brutalist minimal
-- Semua label kecil: mono uppercase tracking-widest
+- Label kecil: mono uppercase `tracking-widest`
 - TIDAK ada gradient, TIDAK ada ilustrasi
-- Footer bg-ink selalu hitam → pakai class keep-ink (dark mode tidak override)
-```
+- Footer `bg-ink` selalu hitam → pakai `class="keep-ink"` agar dark mode tidak override
 
 ### Dark Mode
-```
-- Toggle via html.dark class di <html> — BUKAN Tailwind dark: prefix
-- ThemeProvider sudah di layout.tsx — JANGAN duplikat di halaman lain
-- localStorage key: 'sipeduli-theme'
+- Toggle via `html.dark` class di `<html>` — **BUKAN** Tailwind `dark:` prefix
+- `ThemeProvider` sudah di `layout.tsx` — jangan duplikat di halaman lain
+- `localStorage` key: `'sipeduli-theme'`
 - Curtain animation saat toggle (falling/rising)
-```
 
 ### CSS Classes Penting (`globals.css`)
 ```
@@ -199,11 +225,8 @@ JetBrains Mono → SEMUA label kecil uppercase (class: mono)
 .redLabel               → underline grow animation
 .lift                   → card hover lift
 .magBtn / .sweep        → magnetic button effect
-.theme-toggle           → dark mode toggle button
 .curtain                → fullscreen curtain transition
 .hero-grid              → animated dotted grid background
-.grid-sq                → accent squares on grid
-.float-mark             → floating ambient SVG marks
 .faqBody / .faqBody.open → FAQ collapse animation
 .livePulse / .ringPulse → pulse animations
 .tlBar                  → timeline progress fill
@@ -213,54 +236,39 @@ JetBrains Mono → SEMUA label kecil uppercase (class: mono)
 
 ## 6. ML PIPELINE
 
-### Dataset Final
-```
-Total: 3.771 baris (2.413 real + 1.358 synthetic SMOTE)
-Label: Tinggi 1.257 / Sedang 1.257 / Rendah 1.257 (perfectly balanced)
-Feature (X): deskripsi_bersih
-Target (y):  label_urgensi
-```
+### Dataset
+- 3.771 baris (2.413 real + 1.358 synthetic SMOTE), perfectly balanced per label
+- `Tinggi` → ancaman nyawa, pidana > 5 tahun (KUHP 340, 285, dll)
+- `Sedang` → kerugian harta, 2-5 tahun
+- `Rendah` → ketertiban umum, < 2 tahun / denda
 
-### Dasar Label Urgensi
-```
-Tinggi → ancaman nyawa langsung, pidana > 5 tahun (KUHP 340, 285, dll)
-Sedang → kerugian harta/pelanggaran serius, 2-5 tahun
-Rendah → ketertiban umum, < 2 tahun / denda
-Referensi: SARA Model (kepolisian) + ancaman pidana KUHP
-```
-
-### Preprocessing Pipeline
-```
-1. Normalisasi informal → formal (60+ kata: maling→pencuri, dll)
+### Preprocessing Pipeline (production — `ml/preprocessor.py`)
+1. Normalisasi informal → formal (60+ kata: `maling`→`pencuri`, dll)
 2. Cleaning (hapus URL, email, angka, simbol)
-3. Hapus stopwords (60+ kata Bahasa Indonesia)
-   ⚠ PENTING: tidak dan sangat SENGAJA tidak dihapus
-      → mengubah makna urgensi ("tidak ada korban" vs "ada korban")
+3. Hapus stopwords — **`tidak` dan `sangat` sengaja TIDAK dihapus** (mengubah makna urgensi)
 4. Stemming (Sastrawi)
 5. Relabeling otomatis berbasis konten
-6. SMOTE balancing (offline, hanya di notebook)
-```
+
+SMOTE balancing hanya di notebook (offline), tidak di production.
 
 ---
 
 ## 7. INTEGRASI FE ↔ BACKEND
 
-### Endpoint yang Dibutuhkan
+### Endpoint
 ```
-POST /predict           → { teks: string } → { label_urgensi, confidence_score }
-POST /laporan           → simpan laporan ke Supabase
-GET  /laporan           → ambil semua laporan untuk dashboard
-GET  /laporan/:id       → detail satu laporan
-PATCH /laporan/:id/status → update status laporan
+POST /predict             → { teks: string } → { label_urgensi, confidence_score }
+POST /laporan             → simpan laporan ke Supabase
+GET  /laporan             → semua laporan untuk dashboard
+GET  /laporan/:id         → detail satu laporan
+PATCH /laporan/:id/status → update status
 ```
 
-### Implementasi di Frontend (belum dilakukan)
-Di `app/laporan/page.tsx`, fungsi `handleSubmit()`:
+### Pending di Frontend
+
+**1. `app/laporan/laporan_page.tsx` — `handleSubmit()`** masih pakai simulasi `setTimeout(2000)` + urgensi random.
+Ganti dengan:
 ```typescript
-// GANTI simulasi ini:
-await new Promise(r => setTimeout(r, 2000))
-
-// DENGAN:
 const res = await fetch('http://localhost:8000/predict', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
@@ -269,41 +277,17 @@ const res = await fetch('http://localhost:8000/predict', {
 const { label_urgensi, confidence_score } = await res.json()
 ```
 
----
+**2. `app/admin/dashboard/page.tsx`** — array `REPORTS` dan `NOTIFICATIONS` hardcoded.
+Harus diganti dengan fetch ke `GET /laporan` setelah backend router aktif.
 
-## 8. PROGRESS STATUS
-
-### ✅ Selesai
-- Data scraping (detik.com) + preprocessing pipeline + ML modeling
-- Landing page (`/`) — animasi, dark mode, semua section
-- Form laporan 3-step (`/laporan`) — submit masih simulasi dummy
-- Dashboard admin (`/admin/dashboard`) — data masih hardcoded
-- Login admin (`/admin/login`) + route protection
-- Dark mode di semua halaman (ThemeProvider + ThemeToggle)
-- `.gitignore` lengkap + CLAUDE.md
-
-### ❌ Belum Selesai
-- Mobile optimization: `app/laporan/page.tsx` dan `app/page.tsx`
-- Flask/FastAPI `/predict` endpoint (dikerjakan teman)
-- Integrasi FE ↔ backend (fetch ke `/predict` dan `/laporan`)
-- Koneksi Supabase di backend
-- Data real dari Supabase di dashboard (masih dummy)
+**3. Ticket ID** — fungsi `generateTicketId()` di frontend hanya placeholder.
+Seharusnya berasal dari response `POST /laporan` (DB trigger menghasilkan `CRM-YYYY-NNNN`).
 
 ---
 
-## 9. KNOWN ISSUES
-
-1. **Tailwind v4** — custom colors didefinisikan via `@theme { }` di `globals.css`, bukan `tailwind.config.ts`. Jangan tambahkan warna di config.
-2. **Dashboard data dummy** — semua data laporan di dashboard hardcoded, belum fetch dari Supabase.
-3. **handleSubmit simulasi** — `app/laporan/page.tsx` masih pakai `setTimeout` 2000ms, belum terhubung ke API.
-4. **Model artifacts gitignored** — regenerate dari `notebooks/02_modeling.ipynb` jika belum ada.
-
----
-
-## 10. KONVENSI KODE
+## 8. KONVENSI KODE
 
 - **Bahasa Indonesia** di variable name, komentar, field DB, dan UI text
 - **Urgensi:** selalu `Tinggi` / `Sedang` / `Rendah` (kapital di awal) — match PostgreSQL ENUM
-- **Next.js 16.2** App Router — cek `frontend/AGENTS.md` untuk referensi API terbaru sebelum edit frontend
-- **`.env` gitignored** — jangan pernah commit. File `.env` di root hanya untuk dev lokal (credentials placeholder)
-- **Model artifacts gitignored** — share via MLflow atau external storage
+- **`.env` gitignored** — jangan pernah commit
+- **Model artifacts gitignored** — regenerate dari `notebooks/02_modeling.ipynb`
