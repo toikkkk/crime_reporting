@@ -24,8 +24,9 @@ app.add_middleware(
 
 # ── Routers (akan ditambah bertahap) ─────────────────────────────
 # from app.api.routes import laporan, auth, admin, predict
+from app.api.routes import predict
 # app.include_router(laporan.router, prefix="/api/v1/laporan", tags=["Laporan"])
-# app.include_router(predict.router, prefix="/api/v1/predict", tags=["ML Predict"])
+app.include_router(predict.router, prefix="/api/v1/predict", tags=["ML Predict"])
 # app.include_router(auth.router,    prefix="/api/v1/auth",    tags=["Auth"])
 # app.include_router(admin.router,   prefix="/api/v1/admin",   tags=["Admin"])
 
