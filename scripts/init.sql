@@ -51,7 +51,7 @@ CREATE INDEX idx_training_cluster ON training_data(cluster_id);
 CREATE TABLE laporan (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     -- Tracking ticket untuk pelapor
-    ticket_id           VARCHAR(12) UNIQUE NOT NULL,  -- contoh: CRM-2024-0001
+    ticket_id           TEXT UNIQUE NOT NULL,  -- contoh: CRM-2024-0001 (13 karakter)
 
     -- Input dari pelapor
     judul               VARCHAR(255) NOT NULL,

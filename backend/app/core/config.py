@@ -1,34 +1,25 @@
+import os
 from pydantic_settings import BaseSettings
-from typing import List
-
 
 class Settings(BaseSettings):
-    # Database
-    DATABASE_URL: str = "postgresql://crime_user:crime_pass@localhost:5432/crime_reporting"
+    # Backend Config
+    ENVIRONMENT: str = "development"
+    SECRET_KEY: str = "dev-secret-key-ganti-di-production"
 
-    # Supabase
+    # Supabase Config (REST API)
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
 
-    # Auth
-    SECRET_KEY: str = "changeme"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 hari
+    # Supabase Config (PostgreSQL Connection String)
+    DATABASE_URL: str = ""
 
     # MLflow
     MLFLOW_TRACKING_URI: str = "http://localhost:5000"
 
-    # CORS
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:8000",
-    ]
-
-    ENVIRONMENT: str = "development"
-
     class Config:
         env_file = ".env"
-        case_sensitive = True
+        env_file_encoding = 'utf-8'
+        extra = "ignore"
 
-
+# Inisialisasi object settings untuk di-import di file lain
 settings = Settings()

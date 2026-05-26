@@ -682,14 +682,52 @@ export default function LaporanPage() {
 
   const handleSubmit = async () => {
     setSubmitting(true)
-    await new Promise(r => setTimeout(r, 2000))
-    const id = generateTicketId()
-    const urgensiOptions = ['Tinggi', 'Sedang', 'Rendah']
-    const predicted = urgensiOptions[Math.floor(Math.random() * 3)]
-    setTicketId(id)
-    setUrgensi(predicted)
-    setSubmitting(false)
-    setStep(3)
+
+    const payload = {
+      judul:          formData.judul,
+      deskripsi:      formData.deskripsi,
+      lokasi:         formData.lokasi,
+      nama_pelapor:   formData.mode === 'identitas' ? formData.nama  : null,
+      kontak_pelapor: formData.mode === 'identitas' ? formData.noHp  : null,
+      is_anonim:      formData.mode === 'anonim',
+    }
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${apiUrl}/api/laporan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.detail || 'Gagal mengirim laporan')
+      }
+
+      const result = await response.json()
+      setTicketId(result.ticket_id)
+      setUrgensi(result.analisis.kategori)
+
+      if (formData.files && formData.files.length > 0) {
+        const fData = new FormData()
+        formData.files.forEach((f: File) => fData.append('files', f))
+        try {
+          await fetch(`${apiUrl}/api/laporan/${result.ticket_id}/foto`, {
+            method: 'POST',
+            body: fData,
+          })
+        } catch (err) {
+          console.error('Upload foto gagal:', err)
+        }
+      }
+
+      setStep(3)
+    } catch (error) {
+      alert('Terjadi kesalahan: ' + error)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (

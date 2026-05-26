@@ -316,17 +316,48 @@ function UrgencySystem() {
 /* ============================================================
    STATUS TRACKER
    ============================================================ */
-const STATUS_DB: Record<string, StatusEntry> = {
-  'CRM-2025-0089': { stage: 2, kind: 'tinggi', cat: 'Pencurian dengan kekerasan',   loc: 'Jakarta Pusat', updated: '12 menit lalu', officer: 'Polrestabes Jakpus · Unit IV'       },
-  'CRM-2025-0088': { stage: 1, kind: 'sedang', cat: 'Pengrusakan fasilitas umum',   loc: 'Bandung',       updated: '38 menit lalu', officer: 'Polrestabes Bandung · Reskrim'      },
-  'CRM-2025-0087': { stage: 3, kind: 'rendah', cat: 'Gangguan ketertiban',          loc: 'Surabaya',      updated: '1 jam lalu',    officer: 'Polsek Wonokromo'                   },
+interface DbLaporanPublic {
+  ticket_id: string
+  judul: string | null
+  lokasi: string | null
+  prediksi_urgensi: string | null
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1)  return 'baru saja'
+  if (mins < 60) return `${mins} menit lalu`
+  const h = Math.floor(mins / 60)
+  if (h < 24)    return `${h} jam lalu`
+  return `${Math.floor(h / 24)} hari lalu`
+}
+
+function dbToStatusEntry(row: DbLaporanPublic): StatusEntry & { ticketId: string } {
+  const stageMap: Record<string, number> = {
+    'Diterima': 0, 'Dianalisis': 1, 'Dalam Penyelidikan': 2, 'Selesai': 3, 'Ditolak': 3,
+  }
+  const kindMap: Record<string, BadgeKind> = { 'Tinggi': 'tinggi', 'Sedang': 'sedang', 'Rendah': 'rendah' }
+  return {
+    ticketId: row.ticket_id,
+    stage:    stageMap[row.status] ?? 0,
+    kind:     kindMap[row.prediksi_urgensi ?? ''] ?? 'rendah',
+    cat:      row.judul || '-',
+    loc:      row.lokasi || '-',
+    updated:  timeAgo(row.updated_at || row.created_at),
+    officer:  'Petugas SIPEDULI',
+  }
 }
 
 function Tracker() {
-  const [q,      setQ]      = useState('CRM-2025-0089')
-  const [active, setActive] = useState('CRM-2025-0089')
-  const [error,  setError]  = useState('')
-  const data = STATUS_DB[active]
+  const [q,          setQ]          = useState('')
+  const [result,     setResult]     = useState<(StatusEntry & { ticketId: string }) | null>(null)
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState('')
+  const [examples,   setExamples]   = useState<string[]>([])
   const steps = [
     { label: 'Diterima',     meta: 'Laporan tersimpan'    },
     { label: 'Dianalisis',   meta: 'Klasifikasi AI'       },
@@ -336,12 +367,42 @@ function Tracker() {
   const [hdrRef, hdrShown] = useReveal()
   const [tlRef,  tlShown]  = useReveal({ threshold: 0.25 })
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const key = q.trim().toUpperCase()
-    if (STATUS_DB[key]) { setActive(key); setError('') }
-    else setError('Nomor laporan tidak ditemukan. Coba CRM-2025-0089.')
+  // Load 3 most-recent ticket IDs as examples
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    fetch(`${apiUrl}/api/laporan?limit=3`)
+      .then(r => r.json())
+      .then(json => {
+        const ids: string[] = (json.data as DbLaporanPublic[]).map(r => r.ticket_id).filter(Boolean)
+        setExamples(ids)
+      })
+      .catch(() => {/* silent — examples are optional */})
+  }, [])
+
+  const lookup = async (ticketId: string) => {
+    const key = ticketId.trim().toUpperCase()
+    if (!key) return
+    setLoading(true)
+    setError('')
+    setResult(null)
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const res = await fetch(`${apiUrl}/api/laporan/${encodeURIComponent(key)}`)
+      if (res.status === 404) {
+        setError(`Nomor laporan tidak ditemukan. Pastikan nomor yang Anda masukkan sesuai (contoh: CRM-2026-0001).`)
+        return
+      }
+      if (!res.ok) throw new Error('Gagal menghubungi server')
+      const row: DbLaporanPublic = await res.json()
+      setResult(dbToStatusEntry(row))
+    } catch {
+      setError('Terjadi kesalahan saat menghubungi server. Coba beberapa saat lagi.')
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const submit = (e: React.FormEvent) => { e.preventDefault(); lookup(q) }
 
   return (
     <section id="cek-status" className="bg-white">
@@ -359,85 +420,181 @@ function Tracker() {
         <form onSubmit={submit} className="mt-10 border border-ink r4 flex flex-col md:flex-row focus-within:shadow-[0_0_0_3px_rgba(204,0,0,0.12)]">
           <div className="flex-1 flex items-center px-5 py-4 gap-4">
             <span className="mono text-[11px] uppercase tracking-[0.18em] text-gray-500 hidden sm:inline">NO. LAPORAN</span>
-            <input type="text" value={q} onChange={e => setQ(e.target.value)} placeholder="Contoh: CRM-2025-0089"
+            <input type="text" value={q} onChange={e => setQ(e.target.value)} placeholder="Contoh: CRM-2026-0001"
               className="mono w-full bg-transparent text-[15px] font-bold tracking-[0.04em] outline-none" />
           </div>
-          <button type="submit" className="bg-ink text-white font-bold text-[13px] tracking-[0.18em] uppercase px-7 py-4 hover:bg-black">
-            Cek Status
+          <button type="submit" disabled={loading}
+            className="bg-ink text-white font-bold text-[13px] tracking-[0.18em] uppercase px-7 py-4 hover:bg-black disabled:opacity-60">
+            {loading ? 'MENCARI...' : 'CEK STATUS'}
           </button>
         </form>
         {error && <div className="mt-3 mono text-[12px] text-alert uppercase tracking-[0.12em]">{error}</div>}
 
-        <div className="mt-10 border border-gray-200 r4 bg-white">
-          <div className="grid md:grid-cols-4 border-b border-gray-200">
-            {([
-              ['NO. LAPORAN', <span key="id" className="mono font-bold">{active}</span>],
-              ['JENIS',       data.cat],
-              ['LOKASI',      data.loc],
-              ['DIPERBARUI',  data.updated],
-            ] as [string, React.ReactNode][]).map(([k, v], i) => (
-              <div key={String(k)} className={`px-6 py-5 ${i < 3 ? 'md:border-r border-b md:border-b-0 border-gray-200' : ''}`}>
-                <div className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">{k}</div>
-                <div className="mt-2 font-bold text-[15px]">{v}</div>
-              </div>
-            ))}
-          </div>
+        {/* Result panel — only shown after a successful lookup */}
+        {result && (
+          <div className="mt-10 border border-gray-200 r4 bg-white overflow-hidden">
 
-          <div ref={tlRef} className={`px-6 md:px-10 py-10 reveal up ${tlShown ? 'in' : ''}`}
-            style={{ '--tl': `${data.stage / 3}` } as React.CSSProperties}>
-            <div className="grid grid-cols-4 gap-3 relative">
-              <div className="absolute left-0 right-0 top-[12px] h-px bg-gray-200"
-                style={{ marginLeft: 'calc(12.5% + 14px)', marginRight: 'calc(12.5% + 14px)' }} />
-              <div className="tlBar" style={{ left: 'calc(12.5% + 14px)', right: 'calc(12.5% + 14px)', width: 'auto' }} />
-              {steps.map((s, i) => {
-                const filled = i < data.stage, current = i === data.stage
-                let bg = '#ffffff', border = '#9ca3af', mark = ''
-                if (filled)  { bg = '#0a0a0a'; border = '#0a0a0a'; mark = '✓' }
-                if (current) { bg = '#cc0000'; border = '#cc0000'; mark = '●' }
-                return (
-                  <div key={s.label} className="flex flex-col items-center text-center px-2 relative z-10">
-                    <div className={`w-[28px] h-[28px] r4 flex items-center justify-center text-white text-[12px] font-bold transition-all duration-500 ${current ? 'ringPulse' : ''}`}
-                      style={{ background: bg, border: `2px solid ${border}` }}>
-                      <span style={{ color: filled || current ? '#ffffff' : 'transparent' }}>{mark}</span>
-                    </div>
-                    <div className="mt-3 font-bold text-[14px]" style={{ color: filled || current ? '#0a0a0a' : '#9ca3af' }}>{s.label}</div>
-                    <div className="mt-1 mono text-[10px] uppercase tracking-[0.14em] text-gray-500">{s.meta}</div>
-                  </div>
-                )
-              })}
+            {/* ── Status banner ── */}
+            <div className="bg-ink text-white px-6 py-4 flex flex-wrap items-center gap-3">
+              <span className="mono text-[10px] uppercase tracking-[0.18em] text-black/50 shrink-0">STATUS SAAT INI</span>
+              <span className={`mono text-[11px] font-bold px-3 py-1 r4 uppercase ${
+                result.stage === 3 ? 'bg-green-600' : 'bg-alert'
+              }`}>
+                {steps[result.stage]?.label}
+              </span>
+              <span className="mono text-[11px] text-white/40 ml-auto">
+                LANGKAH {result.stage + 1} DARI {steps.length}
+              </span>
+              <span className="w-px h-4 bg-white/20 hidden sm:block" />
+              <span className="mono text-[11px] text-white/50 hidden sm:block">{result.updated}</span>
             </div>
-            <div className="mt-10 grid md:grid-cols-3 gap-0 border-t border-gray-200 pt-6">
-              <div className="md:pr-6">
-                <div className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">PETUGAS PENANGANAN</div>
-                <div className="mt-2 font-bold text-[15px]">{data.officer}</div>
+
+            {/* ── Info row ── */}
+            <div className="grid md:grid-cols-3 border-b border-gray-200">
+              <div className="px-6 py-5 md:border-r border-b md:border-b-0 border-gray-200">
+                <div className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">NO. LAPORAN</div>
+                <div className="mt-2 mono font-bold text-[15px]">{result.ticketId}</div>
               </div>
-              <div className="md:px-6 md:border-l border-gray-200 mt-6 md:mt-0">
-                <div className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">PRIORITAS</div>
-                <div className="mt-2">
-                  <Badge kind={data.kind}>{data.kind === 'tinggi' ? 'TINGGI' : data.kind === 'sedang' ? 'SEDANG' : 'RENDAH'}</Badge>
+              <div className="px-6 py-5 md:border-r border-b md:border-b-0 border-gray-200">
+                <div className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">JUDUL LAPORAN</div>
+                <div className="mt-2 font-bold text-[15px]">{result.cat}</div>
+              </div>
+              <div className="px-6 py-5">
+                <div className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">LOKASI KEJADIAN</div>
+                <div className="mt-2 font-bold text-[15px]">{result.loc}</div>
+              </div>
+            </div>
+
+            {/* ── Timeline ── */}
+            <div className="px-6 md:px-10 pt-8 pb-10">
+
+              {/* Progress bar */}
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">PROGRES PENANGANAN</span>
+                  <span className="mono text-[11px] font-bold">
+                    {Math.round(((result.stage + 1) / steps.length) * 100)}%
+                  </span>
+                </div>
+                <div className="h-[3px] bg-gray-100 r4 overflow-hidden">
+                  <div
+                    className="h-full bg-ink transition-all duration-700 ease-out"
+                    style={{ width: `${((result.stage + 1) / steps.length) * 100}%` }}
+                  />
                 </div>
               </div>
-              <div className="md:pl-6 md:border-l border-gray-200 mt-6 md:mt-0">
-                <div className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">TINDAKAN ANDA</div>
-                <div className="mt-2 font-bold text-[15px]">Tambahkan informasi atau bukti baru</div>
-                {/* Sinkron ke /laporan */}
-                <Link href="/laporan" className="mt-2 mono text-[11px] uppercase tracking-[0.18em] font-bold underline underline-offset-4">
-                  LAPORAN BARU →
-                </Link>
+
+              {/* Step nodes */}
+              <div className="relative">
+                {/* Gray track */}
+                <div className="absolute h-[2px] bg-gray-200"
+                  style={{ top: 20, left: 'calc(12.5%)', right: 'calc(12.5%)' }} />
+                {/* Filled track */}
+                <div
+                  className="absolute h-[2px] bg-ink transition-all duration-700 ease-out"
+                  style={{
+                    top: 20,
+                    left: 'calc(12.5%)',
+                    width: result.stage === 0
+                      ? '0%'
+                      : `${(result.stage / (steps.length - 1)) * 75}%`,
+                  }}
+                />
+
+                <div className="grid grid-cols-4 relative z-10">
+                  {steps.map((s, i) => {
+                    const filled  = i < result.stage
+                    const current = i === result.stage
+                    const pending = i > result.stage
+                    return (
+                      <div key={s.label} className="flex flex-col items-center text-center px-1">
+
+                        {/* Node */}
+                        <div
+                          className={`flex items-center justify-center font-bold text-white r4 transition-all duration-500 ${
+                            current ? 'w-10 h-10 text-[15px] ringPulse' : 'w-8 h-8 text-[12px]'
+                          }`}
+                          style={{
+                            background: filled ? '#0a0a0a' : current ? '#cc0000' : '#ffffff',
+                            border: `2px solid ${filled ? '#0a0a0a' : current ? '#cc0000' : '#d1d5db'}`,
+                            boxShadow: current ? '0 0 0 4px rgba(204,0,0,0.12)' : 'none',
+                          }}
+                        >
+                          {filled  && '✓'}
+                          {current && '●'}
+                        </div>
+
+                        {/* Step label */}
+                        <div className={`mt-3 text-[13px] leading-tight font-bold ${
+                          current ? 'text-alert' : filled ? 'text-ink' : 'text-gray-300'
+                        }`}>
+                          {s.label}
+                        </div>
+
+                        {/* "SAAT INI" indicator */}
+                        {current && (
+                          <div className="mt-1 mono text-[9px] uppercase tracking-widest text-alert font-bold">
+                            ▲ SAAT INI
+                          </div>
+                        )}
+
+                        <div className={`mt-1 mono text-[10px] uppercase tracking-[0.12em] ${
+                          pending ? 'text-gray-300' : 'text-gray-400'
+                        }`}>
+                          {s.meta}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Bottom info */}
+              <div className="mt-10 grid md:grid-cols-3 gap-0 border-t border-gray-200 pt-6">
+                <div className="md:pr-6">
+                  <div className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">PETUGAS PENANGANAN</div>
+                  <div className="mt-2 font-bold text-[15px]">{result.officer}</div>
+                  <div className="mt-1 mono text-[10px] text-gray-400">{result.updated}</div>
+                </div>
+                <div className="md:px-6 md:border-l border-gray-200 mt-6 md:mt-0">
+                  <div className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">PRIORITAS</div>
+                  <div className="mt-2">
+                    <Badge kind={result.kind}>
+                      {result.kind === 'tinggi' ? 'TINGGI' : result.kind === 'sedang' ? 'SEDANG' : 'RENDAH'}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="md:pl-6 md:border-l border-gray-200 mt-6 md:mt-0">
+                  <div className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">TINDAKAN ANDA</div>
+                  <div className="mt-2 font-bold text-[15px]">Tambahkan informasi atau bukti baru</div>
+                  <Link href="/laporan" className="mt-2 mono text-[11px] uppercase tracking-[0.18em] font-bold underline underline-offset-4">
+                    LAPORAN BARU →
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="mt-6 flex flex-wrap items-center gap-2">
-          <span className="mono text-[11px] uppercase tracking-[0.18em] text-gray-500">CONTOH:</span>
-          {Object.keys(STATUS_DB).map(id => (
-            <button key={id} onClick={() => { setQ(id); setActive(id); setError('') }}
-              className={`mono text-[12px] font-bold px-3 py-1 r4 border ${active === id ? 'bg-ink text-white border-ink' : 'border-gray-300 hover:border-ink'}`}>
-              {id}
-            </button>
-          ))}
-        </div>
+        {/* Empty state — shown before any lookup */}
+        {!result && !loading && !error && (
+          <div className="mt-10 border border-dashed border-gray-300 r4 py-14 flex flex-col items-center justify-center text-center">
+            <div className="mono text-[11px] uppercase tracking-[0.18em] text-gray-400">MASUKKAN NOMOR LAPORAN DI ATAS</div>
+            <div className="mt-2 text-gray-500 text-[14px]">Nomor laporan diterima saat pengiriman laporan berhasil (format: CRM-TTTT-NNNN)</div>
+          </div>
+        )}
+
+        {examples.length > 0 && (
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <span className="mono text-[11px] uppercase tracking-[0.18em] text-gray-500">CONTOH:</span>
+            {examples.map(id => (
+              <button key={id} onClick={() => { setQ(id); lookup(id) }}
+                className={`mono text-[12px] font-bold px-3 py-1 r4 border ${result?.ticketId === id ? 'bg-ink text-white border-ink' : 'border-gray-300 hover:border-ink'}`}>
+                {id}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )

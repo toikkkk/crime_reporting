@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { ThemeToggle } from '../../components/ThemeToggle'
 import './dashboard.css'
@@ -26,6 +26,28 @@ interface Report {
   dist: { hi: number; md: number; lo: number }
 }
 
+interface DbLaporan {
+  id: string
+  ticket_id: string
+  judul: string | null
+  deskripsi: string
+  lokasi: string | null
+  nama_pelapor: string | null
+  is_anonim: boolean
+  prediksi_urgensi: string | null
+  confidence_score: number | null
+  keywords_detected: string[] | null
+  status: string
+  created_at: string
+}
+
+interface Stats {
+  total: number
+  tinggi: number
+  aktif: number
+  selesaiHariIni: number
+}
+
 interface Province {
   id: string
   nm: string
@@ -41,27 +63,71 @@ interface Province {
 interface MapContext { id: string; points: string }
 interface MapDot    { cx: number; cy: number; r: number }
 interface Notif     { id: string; urg: Urg; title: string; msg: string; time: string }
+interface FotoBukti { id: string; filename: string; storage_url: string; file_size: number; mime_type: string }
 
 /* ============================================================
-   DATA
+   HELPERS
    ============================================================ */
-const REPORTS: Report[] = [
-  { no: 1, id: 'CRM-2026-0091', urg: 'hi', conf: 89, kron: 'pelaku membawa senjata tajam dan melukai korban di area pasar tradisional sekitar pukul 22:30 malam', loc: 'Jakarta Pusat', time: '14 MEI · 21:42', status: 'inv',  keywords: ['senjata tajam','melukai','pelaku','ancaman','luka serius'], dist: { hi: 89, md: 8,  lo: 3  } },
-  { no: 2, id: 'CRM-2026-0090', urg: 'md', conf: 76, kron: 'kendaraan bermotor dicuri dari parkiran kantor pada siang hari, tanpa saksi mata',                      loc: 'Bandung',       time: '14 MEI · 18:10', status: 'anal', keywords: ['kendaraan','dicuri','parkiran'],                              dist: { hi: 18, md: 76, lo: 6  } },
-  { no: 3, id: 'CRM-2026-0089', urg: 'hi', conf: 92, kron: 'perampokan disertai ancaman dengan senjata api di minimarket, dua pelaku menggunakan helm',               loc: 'Surabaya',      time: '14 MEI · 16:55', status: 'recv', keywords: ['perampokan','senjata api','ancaman','pelaku'],                dist: { hi: 92, md: 6,  lo: 2  } },
-  { no: 4, id: 'CRM-2026-0088', urg: 'lo', conf: 81, kron: 'pengrusakan fasilitas umum di taman kota oleh sekelompok remaja malam hari',                              loc: 'Yogyakarta',    time: '13 MEI · 23:20', status: 'done', keywords: ['pengrusakan','fasilitas umum','remaja'],                      dist: { hi: 4,  md: 15, lo: 81 } },
-  { no: 5, id: 'CRM-2026-0087', urg: 'md', conf: 71, kron: 'penipuan online dengan modus transfer dana investasi palsu kepada beberapa korban',                       loc: 'Medan',         time: '13 MEI · 19:08', status: 'inv',  keywords: ['penipuan','transfer','investasi palsu','online'],            dist: { hi: 12, md: 71, lo: 17 } },
-  { no: 6, id: 'CRM-2026-0086', urg: 'hi', conf: 95, kron: 'penyerangan brutal meninggalkan korban luka berat di pemukiman, pelaku menggunakan benda tumpul',         loc: 'Makassar',      time: '13 MEI · 14:30', status: 'anal', keywords: ['penyerangan','luka berat','pelaku','brutal','benda tumpul'], dist: { hi: 95, md: 4,  lo: 1  } },
-  { no: 7, id: 'CRM-2026-0085', urg: 'lo', conf: 68, kron: 'keributan dan gangguan ketertiban di pasar tradisional saat jam ramai',                                   loc: 'Semarang',      time: '13 MEI · 11:15', status: 'done', keywords: ['keributan','ketertiban','pasar'],                             dist: { hi: 6,  md: 26, lo: 68 } },
-  { no: 8, id: 'CRM-2026-0084', urg: 'md', conf: 83, kron: 'pencurian dengan kekerasan terhadap pejalan kaki di trotoar pada jam berangkat kerja',                    loc: 'Depok',         time: '13 MEI · 06:50', status: 'recv', keywords: ['pencurian','kekerasan','pejalan kaki'],                      dist: { hi: 14, md: 83, lo: 3  } },
-]
+function mapUrg(pred: string | null): Urg {
+  if (pred === 'Tinggi') return 'hi'
+  if (pred === 'Sedang') return 'md'
+  return 'lo'
+}
 
-const NOTIFICATIONS: Notif[] = [
-  { id: 'n1', urg: 'hi', title: 'Laporan prioritas tinggi baru',  msg: 'CRM-2026-0091 · penyerangan dengan senjata tajam di Jakarta Pusat',     time: '4 menit lalu'  },
-  { id: 'n2', urg: 'hi', title: 'Eskalasi otomatis',              msg: 'CRM-2026-0089 dieskalasikan ke unit reaksi cepat Surabaya',              time: '12 menit lalu' },
-  { id: 'n3', urg: 'md', title: 'Konfirmasi diperlukan',          msg: 'CRM-2026-0084 menunggu persetujuan klasifikasi ulang',                   time: '38 menit lalu' },
-]
+function mapStatus(s: string | null): Status {
+  if (s === 'Dianalisis') return 'anal'
+  if (s === 'Dalam Penyelidikan') return 'inv'
+  if (s === 'Selesai' || s === 'Ditolak') return 'done'
+  return 'recv'
+}
 
+function formatTime(iso: string): string {
+  const d = new Date(iso)
+  const months = ['JAN','FEB','MAR','APR','MEI','JUN','JUL','AGT','SEP','OKT','NOV','DES']
+  return (
+    String(d.getDate()).padStart(2, '0') + ' ' +
+    months[d.getMonth()] + ' · ' +
+    String(d.getHours()).padStart(2, '0') + ':' +
+    String(d.getMinutes()).padStart(2, '0')
+  )
+}
+
+function calcDist(urg: Urg, conf: number): { hi: number; md: number; lo: number } {
+  const r = Math.max(0, Math.min(100, Math.round(conf)))
+  const rem = 100 - r
+  if (urg === 'hi') {
+    const md = Math.round(rem * 0.7)
+    return { hi: r, md, lo: rem - md }
+  }
+  if (urg === 'md') {
+    const hi = Math.round(rem * 0.2)
+    return { hi, md: r, lo: rem - hi }
+  }
+  const hi = Math.round(rem * 0.1)
+  const md = Math.round(rem * 0.3)
+  return { hi, md, lo: 100 - hi - md }
+}
+
+function dbToReport(row: DbLaporan, idx: number): Report {
+  const urg  = mapUrg(row.prediksi_urgensi)
+  const conf = Math.round(row.confidence_score ?? 0)
+  return {
+    no:       idx + 1,
+    id:       row.ticket_id,
+    urg,
+    conf,
+    kron:     row.deskripsi || row.judul || '-',
+    loc:      row.lokasi || '-',
+    time:     formatTime(row.created_at),
+    status:   mapStatus(row.status),
+    keywords: row.keywords_detected || [],
+    dist:     calcDist(urg, conf),
+  }
+}
+
+/* ============================================================
+   STATIC DATA (map only)
+   ============================================================ */
 const LVL_COLOR: Record<LvlKey, string> = {
   'red-dark':  '#cc0000',
   'red-light': '#ff6b6b',
@@ -185,10 +251,10 @@ const SvgSearch = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="no
 /* ============================================================
    SIDEBAR
    ============================================================ */
-function Sidebar({ active, onChange }: { active: NavKey; onChange: (k: NavKey) => void }) {
+function Sidebar({ active, onChange, totalCount }: { active: NavKey; onChange: (k: NavKey) => void; totalCount: number }) {
   const links: { k: NavKey; ic: React.ReactNode; lbl: string; count?: string }[] = [
     { k: 'dashboard',   ic: <SvgChart />,  lbl: 'Dashboard' },
-    { k: 'laporan',     ic: <SvgList />,   lbl: 'Semua Laporan', count: '247' },
+    { k: 'laporan',     ic: <SvgList />,   lbl: 'Semua Laporan', count: totalCount > 0 ? String(totalCount) : undefined },
     { k: 'peta',        ic: <SvgMap />,    lbl: 'Peta Kejahatan' },
     { k: 'pengaturan',  ic: <SvgGear />,   lbl: 'Pengaturan' },
   ]
@@ -227,7 +293,7 @@ function Sidebar({ active, onChange }: { active: NavKey; onChange: (k: NavKey) =
 /* ============================================================
    TOPBAR
    ============================================================ */
-function TopBar({ active, onLogout }: { active: NavKey; onLogout: () => void }) {
+function TopBar({ active, onLogout, notifications, onMarkRead }: { active: NavKey; onLogout: () => void; notifications: Notif[]; onMarkRead: () => void }) {
   const [notifOpen, setNotifOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -258,15 +324,18 @@ function TopBar({ active, onLogout }: { active: NavKey; onLogout: () => void }) 
       <div className="tb-right" ref={ref}>
         <button className={`bell ${notifOpen ? 'active' : ''}`} onClick={() => setNotifOpen(o => !o)} aria-label="Notifikasi">
           <SvgBell />
-          <span className="badge">3</span>
+          {notifications.length > 0 && <span className="badge">{notifications.length}</span>}
         </button>
         {notifOpen && (
           <div className="notif-panel" role="dialog">
             <div className="notif-hd">
               <span className="t">Notifikasi</span>
-              <button className="all" onClick={() => setNotifOpen(false)}>TANDAI SUDAH DIBACA</button>
+              <button className="all" onClick={() => { onMarkRead(); setNotifOpen(false) }}>TANDAI SUDAH DIBACA</button>
             </div>
-            {NOTIFICATIONS.map(n => (
+            {notifications.length === 0 && (
+              <div style={{ padding: '16px 18px', color: 'var(--g500)', fontSize: 13 }}>Tidak ada notifikasi baru.</div>
+            )}
+            {notifications.map(n => (
               <div key={n.id} className="notif-item" onClick={() => setNotifOpen(false)}>
                 <div className={`notif-bar ${n.urg}`} />
                 <div className="body">
@@ -327,17 +396,17 @@ function TopBar({ active, onLogout }: { active: NavKey; onLogout: () => void }) 
 /* ============================================================
    KPI
    ============================================================ */
-function KPI() {
-  const total  = useCountUp(247, { duration: 1400, delay: 200 })
-  const tinggi = useCountUp(38,  { duration: 1200, delay: 280 })
-  const aktif  = useCountUp(156, { duration: 1300, delay: 360 })
-  const done   = useCountUp(18,  { duration: 1100, delay: 440 })
+function KPI({ stats }: { stats: Stats }) {
+  const total  = useCountUp(stats.total,           { duration: 1400, delay: 200 })
+  const tinggi = useCountUp(stats.tinggi,          { duration: 1200, delay: 280 })
+  const aktif  = useCountUp(stats.aktif,           { duration: 1300, delay: 360 })
+  const done   = useCountUp(stats.selesaiHariIni,  { duration: 1100, delay: 440 })
   return (
     <div className="kpi-grid">
       <div className="kpi">
         <div className="lbl">TOTAL LAPORAN</div>
         <div className="num">{total}</div>
-        <div className="sub"><b>↑ 12</b> · HARI INI</div>
+        <div className="sub">SELURUH LAPORAN MASUK</div>
       </div>
       <div className="kpi alert">
         <div className="lbl">PRIORITAS TINGGI</div>
@@ -352,7 +421,7 @@ function KPI() {
       <div className="kpi green">
         <div className="lbl">SELESAI HARI INI</div>
         <div className="num green">{done}</div>
-        <div className="sub"><b>DARI 24</b> · LAPORAN MASUK</div>
+        <div className="sub">STATUS SELESAI</div>
       </div>
     </div>
   )
@@ -470,8 +539,8 @@ function MapPanel() {
 /* ============================================================
    FEED
    ============================================================ */
-function FeedPanel({ onOpen }: { onOpen: (r: Report) => void }) {
-  const items = REPORTS.slice(0, 6)
+function FeedPanel({ onOpen, reports }: { onOpen: (r: Report) => void; reports: Report[] }) {
+  const items = reports.slice(0, 6)
   return (
     <div className="card feed-card">
       <div className="card-hd">
@@ -487,6 +556,11 @@ function FeedPanel({ onOpen }: { onOpen: (r: Report) => void }) {
         </button>
       </div>
       <div className="feed">
+        {items.length === 0 && (
+          <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--g500)', fontSize: 13 }}>
+            Belum ada laporan masuk.
+          </div>
+        )}
         {items.map(r => (
           <div key={r.id} className="feed-row" onClick={() => onOpen(r)}>
             <div className="a">
@@ -510,18 +584,18 @@ function FeedPanel({ onOpen }: { onOpen: (r: Report) => void }) {
 /* ============================================================
    TABLE
    ============================================================ */
-function ReportsTable({ onOpen, statuses }: { onOpen: (r: Report) => void; statuses: Record<string, Status> }) {
+function ReportsTable({ onOpen, statuses, reports, total }: { onOpen: (r: Report) => void; statuses: Record<string, Status>; reports: Report[]; total: number }) {
   const [q,       setQ]       = useState('')
   const [urg,     setUrg]     = useState<Urg | 'all'>('all')
   const [urgOpen, setUrgOpen] = useState(false)
 
   const filtered = useMemo(() => {
     const ql = q.toLowerCase()
-    return REPORTS.filter(r =>
+    return reports.filter(r =>
       (urg === 'all' || r.urg === urg) &&
       (!ql || r.id.toLowerCase().includes(ql) || r.kron.toLowerCase().includes(ql))
     )
-  }, [q, urg])
+  }, [q, urg, reports])
 
   const urgLabel: Record<Urg | 'all', string> = { all: 'SEMUA URGENSI', hi: 'TINGGI', md: 'SEDANG', lo: 'RENDAH' }
 
@@ -530,7 +604,7 @@ function ReportsTable({ onOpen, statuses }: { onOpen: (r: Report) => void; statu
       <div className="tbl-head">
         <div className="l">
           <span className="t">DAFTAR LAPORAN</span>
-          <span className="s">{filtered.length} TERTAMPIL · 247 TOTAL</span>
+          <span className="s">{filtered.length} TERTAMPIL · {total} TOTAL</span>
         </div>
         <div className="r">
           <div className="search">
@@ -585,14 +659,14 @@ function ReportsTable({ onOpen, statuses }: { onOpen: (r: Report) => void; statu
             ))}
             {filtered.length === 0 && (
               <tr><td colSpan={9} style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--g500)' }}>
-                Tidak ada laporan yang cocok dengan filter.
+                {reports.length === 0 ? 'Memuat data...' : 'Tidak ada laporan yang cocok dengan filter.'}
               </td></tr>
             )}
           </tbody>
         </table>
       </div>
       <div className="pagination">
-        <span className="label">HALAMAN 1 DARI 31 · 247 LAPORAN</span>
+        <span className="label">MENAMPILKAN {filtered.length} DARI {total} LAPORAN</span>
         <div className="ctrl">
           <button className="pg-btn" disabled>← PREV</button>
           <button className="pg-btn">NEXT →</button>
@@ -612,6 +686,8 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
   onClose: () => void
 }) {
   const [ddOpen, setDdOpen] = useState(false)
+  const [fotos, setFotos] = useState<FotoBukti[]>([])
+  const [fotosLoading, setFotosLoading] = useState(true)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -619,6 +695,16 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
     document.body.style.overflow = 'hidden'
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
   }, [onClose])
+
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    setFotosLoading(true)
+    fetch(`${apiUrl}/api/laporan/${report.id}/foto`)
+      .then(r => r.json())
+      .then(d => setFotos(d.data ?? []))
+      .catch(() => setFotos([]))
+      .finally(() => setFotosLoading(false))
+  }, [report.id])
 
   const order: Status[] = ['recv', 'anal', 'inv', 'done']
   const stIdx = order.indexOf(status)
@@ -669,7 +755,10 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
             </div>
             <div className="sec-lbl" style={{ marginTop: 18 }}>KEYWORDS TERDETEKSI</div>
             <div className="chips">
-              {report.keywords.map(k => <span key={k} className="chip">{k}</span>)}
+              {report.keywords.length > 0
+                ? report.keywords.map(k => <span key={k} className="chip">{k}</span>)
+                : <span style={{ color: 'var(--g500)', fontSize: 13 }}>Tidak ada keyword terdeteksi.</span>
+              }
             </div>
             <div className="sec-lbl" style={{ marginTop: 18 }}>DISTRIBUSI PROBABILITAS</div>
             <div>
@@ -686,16 +775,23 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
 
         {/* Foto Bukti */}
         <div className="photos">
-          <div className="sec-lbl">FOTO BUKTI (3 FILE)</div>
-          <div className="photo-grid">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="photo">
-                <div className="ph-img">BUKTI 0{i}</div>
-                <div className="ph-overlay">🔍 BUKA</div>
-              </div>
-            ))}
-            <div className="photo empty">+</div>
-          </div>
+          <div className="sec-lbl">FOTO BUKTI</div>
+          {fotosLoading ? (
+            <div style={{ color: 'var(--g500)', fontSize: 13, padding: '8px 0' }}>Memuat foto...</div>
+          ) : fotos.length === 0 ? (
+            <div style={{ color: 'var(--g500)', fontSize: 13, fontStyle: 'italic', padding: '8px 0' }}>
+              Tidak ada foto bukti yang dilampirkan.
+            </div>
+          ) : (
+            <div className="photo-grid">
+              {fotos.map(f => (
+                <a key={f.id} href={f.storage_url} target="_blank" rel="noopener noreferrer" className="photo" title={f.filename}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={f.storage_url} alt={f.filename} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Timeline */}
@@ -718,7 +814,7 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
 
         {/* Actions */}
         <div className="tl-actions">
-          <div className="l">PETUGAS: Polrestabes Jakpus · Unit IV</div>
+          <div className="l">PETUGAS: Polrestabes · Unit IV</div>
           <div className="r">
             <div style={{ position: 'relative' }}>
               <button className="btn-dark" onClick={() => setDdOpen(o => !o)}>UPDATE STATUS ▾</button>
@@ -759,43 +855,126 @@ function Placeholder({ title, meta, body }: { title: string; meta: string; body:
    ============================================================ */
 export default function DashboardPage() {
   const router = useRouter()
-  const [active,   setActive]   = useState<NavKey>('dashboard')
-  const [selected, setSelected] = useState<Report | null>(null)
-  const [statuses, setStatuses] = useState<Record<string, Status>>({})
+  const [active,     setActive]     = useState<NavKey>('dashboard')
+  const [selected,   setSelected]   = useState<Report | null>(null)
+  const [statuses,   setStatuses]   = useState<Record<string, Status>>({})
+  const [reports,    setReports]    = useState<Report[]>([])
+  const [stats,      setStats]      = useState<Stats>({ total: 0, tinggi: 0, aktif: 0, selesaiHariIni: 0 })
+  const [newReports, setNewReports] = useState<Report[]>([])
+  const seenIdsRef   = useRef<Set<string>>(new Set())
+  const isFirstFetch = useRef(true)
 
   useEffect(() => {
     const session = localStorage.getItem('sipeduli_admin')
-    if (!session) {
-      router.push('/admin/login')
-    }
+    if (!session) router.push('/admin/login')
   }, [router])
+
+  const fetchData = useCallback(async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const res = await fetch(`${apiUrl}/api/laporan`)
+      if (!res.ok) throw new Error('Gagal mengambil data laporan')
+      const json = await res.json()
+      const fetched = (json.data as DbLaporan[]).map((row, i) => dbToReport(row, i))
+      setReports(fetched)
+      setStats(json.stats as Stats)
+
+      if (isFirstFetch.current) {
+        // Tandai semua laporan yang sudah ada sebagai "sudah dilihat"
+        fetched.forEach(r => seenIdsRef.current.add(r.id))
+        isFirstFetch.current = false
+      } else {
+        // Deteksi laporan yang benar-benar baru masuk sejak fetch terakhir
+        const fresh = fetched.filter(r => !seenIdsRef.current.has(r.id))
+        if (fresh.length > 0) {
+          fresh.forEach(r => seenIdsRef.current.add(r.id))
+          setNewReports(prev => [...fresh, ...prev].slice(0, 10))
+        }
+      }
+    } catch (err) {
+      console.error('fetchData error:', err)
+    }
+  }, [])
+
+  // Polling otomatis setiap 10 detik
+  useEffect(() => {
+    fetchData()
+    const id = setInterval(fetchData, 10_000)
+    return () => clearInterval(id)
+  }, [fetchData])
+
+  const notifications: Notif[] = useMemo(() =>
+    newReports.map(r => ({
+      id:    `n-${r.id}`,
+      urg:   r.urg,
+      title: r.urg === 'hi' ? 'Laporan PRIORITAS TINGGI masuk!' : 'Laporan baru masuk',
+      msg:   `${r.id} · ${r.kron.slice(0, 55)}${r.kron.length > 55 ? '...' : ''}`,
+      time:  r.time,
+    }))
+  , [newReports])
+
+  const markAllRead = useCallback(() => {
+    setNewReports([])
+  }, [])
 
   const handleLogout = () => {
     localStorage.removeItem('sipeduli_admin')
     router.push('/admin/login')
   }
 
-  const updateStatus = (id: string, st: Status) => setStatuses(s => ({ ...s, [id]: st }))
+  const updateStatus = (id: string, st: Status) => {
+    // Optimistic update
+    setStatuses(s => ({ ...s, [id]: st }))
+    const statusMap: Record<Status, string> = {
+      recv: 'Diterima',
+      anal: 'Dianalisis',
+      inv:  'Dalam Penyelidikan',
+      done: 'Selesai',
+    }
+    void (async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const res = await fetch(`${apiUrl}/api/laporan/${id}/status`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ status: statusMap[st] }),
+        })
+        if (!res.ok) {
+          // Revert optimistic update on failure
+          setStatuses(s => { const n = { ...s }; delete n[id]; return n })
+          const err = await res.json().catch(() => ({ detail: 'Gagal update status' }))
+          alert(`Gagal update status: ${err.detail ?? res.statusText}`)
+          return
+        }
+        // Re-fetch so KPI counts (aktif, selesai hari ini) stay accurate
+        await fetchData()
+      } catch (err) {
+        setStatuses(s => { const n = { ...s }; delete n[id]; return n })
+        console.error('updateStatus error:', err)
+      }
+    })()
+  }
+
   const currentStatus = selected ? (statuses[selected.id] ?? selected.status) : null
 
   return (
     <div className="app">
-      <Sidebar active={active} onChange={setActive} />
+      <Sidebar active={active} onChange={setActive} totalCount={stats.total} />
       <div className="main">
-        <TopBar active={active} onLogout={handleLogout} />
+        <TopBar active={active} onLogout={handleLogout} notifications={notifications} onMarkRead={markAllRead} />
         {active === 'dashboard' && (
           <>
-            <KPI />
+            <KPI stats={stats} />
             <MapPanel />
             <div className="tbl-feed-grid">
-              <ReportsTable onOpen={setSelected} statuses={statuses} />
-              <FeedPanel onOpen={setSelected} />
+              <ReportsTable onOpen={setSelected} statuses={statuses} reports={reports} total={stats.total} />
+              <FeedPanel onOpen={setSelected} reports={reports} />
             </div>
           </>
         )}
         {active === 'laporan' && (
           <div className="tbl-feed-grid" style={{ gridTemplateColumns: '1fr', paddingTop: 24 }}>
-            <ReportsTable onOpen={setSelected} statuses={statuses} />
+            <ReportsTable onOpen={setSelected} statuses={statuses} reports={reports} total={stats.total} />
           </div>
         )}
         {active === 'peta' && (
