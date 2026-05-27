@@ -28,17 +28,7 @@ cd crime_reporting
 
 ## 2. Konfigurasi Environment
 
-```bash
-# Windows (PowerShell)
-copy backend\.env.example backend\.env
-```
-
-```bash
-# Mac / Linux
-cp backend/.env.example backend/.env
-```
-
-Semua kredensial sudah ada di `.env.example` — tidak perlu mengubah apapun, langsung lanjut ke langkah berikutnya.
+File `.env` sudah ada di repository — tidak perlu konfigurasi apapun, langsung lanjut ke langkah berikutnya.
 
 ---
 
@@ -59,26 +49,7 @@ python -m venv venv311
 pip install -r requirements.txt
 ```
 
-### 3c. Download model ML
-
-Model tidak ikut di repository (file besar). Ada dua cara:
-
-**Cara 1 — Minta file model** dari pemilik project, lalu taruh di:
-```
-backend/ml/models/model_final.pkl
-backend/ml/models/vectorizer.pkl
-backend/ml/models/model_metadata.json
-```
-
-**Cara 2 — Generate ulang** dari notebook:
-```bash
-# Dari root project, aktifkan venv dulu
-pip install jupyter
-jupyter notebook notebooks/04_hybrid_risk_scoring.ipynb
-# Jalankan semua cell (Kernel → Restart & Run All)
-```
-
-### 3d. Jalankan backend
+### 3c. Jalankan backend
 
 ```bash
 # Dari dalam folder backend/ (dengan venv aktif)
@@ -131,9 +102,9 @@ crime_reporting/
 │   │   └── db/
 │   │       └── client.py         # Supabase client
 │   ├── ml/
-│   │   └── models/        # File .pkl model (tidak di-push)
+│   │   └── models/        # model_final.pkl, vectorizer.pkl, model_metadata.json
 │   ├── requirements.txt
-│   └── .env               # Kredensial (tidak di-push)
+│   └── .env               # Kredensial Supabase (sudah ada di repo)
 ├── frontend/              # Next.js 16 App Router
 │   ├── app/
 │   │   ├── page.tsx           # Landing page
@@ -153,9 +124,6 @@ crime_reporting/
 
 ### `ModuleNotFoundError: No module named 'app'`
 Pastikan menjalankan uvicorn dari **dalam folder `backend/`**, bukan dari root project.
-
-### `Gagal load model ML!`
-File `.pkl` belum ada. Ikuti langkah **3c** di atas untuk generate model.
 
 ### Frontend tidak bisa konek ke backend
 Pastikan backend sudah jalan di port 8000. Cek `NEXT_PUBLIC_API_URL` di environment frontend jika deploy ke server.
