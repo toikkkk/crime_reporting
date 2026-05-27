@@ -11,6 +11,7 @@
 # ───────────────────────────────────────────────────────────────
 #  RAHASIA & ENVIRONMENT VARIABLES
 # ───────────────────────────────────────────────────────────────
+.env
 .env.local
 .env.*.local
 .env.development
@@ -245,7 +246,5 @@ poetry.lock
 *.min.js
 *.min.css
 *.map
-frontend/public/
-
 # Build artifacts backend
 backend/app/ml/models/
