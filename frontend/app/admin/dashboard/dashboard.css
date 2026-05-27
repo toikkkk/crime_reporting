@@ -22,13 +22,13 @@ a { color: inherit; text-decoration: none; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 /* ---- Layout ---- */
-.app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+.app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; background: var(--ink); }
 .sidebar { background: var(--ink); color: #fff; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; }
 .main { background: var(--bg); display: flex; flex-direction: column; min-width: 0; }
 
 /* ---- Sidebar ---- */
 .sb-top { padding: 22px 18px 18px; display: flex; align-items: center; gap: 12px; }
-.sb-logo { width: 28px; height: 28px; border: 1px dashed rgba(255,255,255,0.3); border-radius: 4px; }
+.sb-logo { width: 28px; height: 28px; border-radius: 4px; object-fit: contain; display: block; }
 .sb-brand { display: flex; flex-direction: column; line-height: 1.2; }
 .sb-brand .nm { font-weight: 700; font-size: 15px; letter-spacing: 0.04em; }
 .sb-brand .sub { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.18em; color: rgba(255,255,255,0.4); margin-top: 2px; text-transform: uppercase; }
@@ -475,6 +475,72 @@ table.dt tbody tr td, .feed-row { transition: background-color 0.18s ease, color
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ============================================================
+   URGENCY ALERT POPUP
+   ============================================================ */
+@keyframes alertSlideIn {
+  from { opacity: 0; transform: translateX(28px) translateY(16px); }
+  to   { opacity: 1; transform: translateX(0) translateY(0); }
+}
+@keyframes alertPulse {
+  0%, 100% { box-shadow: 0 20px 48px -16px rgba(204,0,0,0.28), 0 8px 24px -8px rgba(0,0,0,0.12); }
+  50%       { box-shadow: 0 20px 56px -12px rgba(204,0,0,0.45), 0 8px 24px -8px rgba(0,0,0,0.14); }
+}
+.urgency-alert {
+  position: fixed; bottom: 28px; right: 28px; z-index: 200;
+  width: 300px; background: #fff;
+  border: 1px solid var(--alert); border-top: 3px solid var(--alert);
+  border-radius: 4px;
+  animation: alertSlideIn 0.45s cubic-bezier(.2,.7,.2,1) both, alertPulse 3s ease-in-out 0.5s infinite;
+  overflow: hidden;
+}
+.ua-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 14px 10px;
+  border-bottom: 1px solid #fde8e8;
+}
+.ua-label {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--alert);
+}
+.ua-dismiss {
+  color: var(--g400); font-size: 14px; width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px; transition: background-color 0.15s ease, color 0.15s ease;
+}
+.ua-dismiss:hover { background: var(--g100); color: var(--ink); }
+.ua-body {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 16px 18px;
+}
+.ua-num {
+  font-size: 56px; font-weight: 700; color: var(--alert);
+  line-height: 1; letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.ua-text .t { font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.4; }
+.ua-text .s {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--g400); margin-top: 5px; font-weight: 700;
+}
+.ua-btn {
+  display: block; width: 100%; padding: 13px 16px;
+  background: var(--alert); color: #fff;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.20em; text-transform: uppercase;
+  text-align: center; border: none; cursor: pointer;
+  transition: background-color 0.2s ease, letter-spacing 0.25s ease;
+}
+.ua-btn:hover { background: #aa0000; letter-spacing: 0.26em; }
+html.dark .urgency-alert { background: #1c1c1c; }
+html.dark .ua-head { border-bottom-color: #3d1010; }
+html.dark .ua-text .t { color: #f5f5f5; }
+html.dark .ua-text .s { color: #6b7280; }
+html.dark .ua-dismiss:hover { background: #2a2a2a; color: #f5f5f5; }
 
 /* ============================================================
    DARK MODE

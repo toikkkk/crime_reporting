@@ -65,11 +65,11 @@ function smoothScrollTo(id: string) {
 /* ============================================================
    ATOMS
    ============================================================ */
-function LogoBox({ size = 32, light = false }: { size?: number; light?: boolean }) {
+function LogoBox({ size = 32 }: { size?: number; light?: boolean }) {
   return (
-    <div className="shrink-0 r4"
-      style={{ width: size, height: size, border: `1px dashed ${light ? '#9ca3af' : '#0a0a0a'}`, display: 'inline-block' }}
-      aria-label="Logo SIPEDULI" />
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/logo.png" alt="Logo SIPEDULI" className="shrink-0 r4"
+      style={{ width: size, height: size, objectFit: 'contain', display: 'inline-block' }} />
   )
 }
 

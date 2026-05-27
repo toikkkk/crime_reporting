@@ -26,15 +26,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-<<<<<<< HEAD
-# ── Routers (akan ditambah bertahap) ─────────────────────────────
-# from app.api.routes import laporan, auth, admin, predict
-from app.api.routes import predict
-# app.include_router(laporan.router, prefix="/api/v1/laporan", tags=["Laporan"])
-app.include_router(predict.router, prefix="/api/v1/predict", tags=["ML Predict"])
-# app.include_router(auth.router,    prefix="/api/v1/auth",    tags=["Auth"])
-# app.include_router(admin.router,   prefix="/api/v1/admin",   tags=["Admin"])
-=======
 
 class LaporanBaru(BaseModel):
     judul: str
@@ -43,7 +34,6 @@ class LaporanBaru(BaseModel):
     nama_pelapor: Optional[str] = None
     kontak_pelapor: Optional[str] = None
     is_anonim: bool = False
->>>>>>> 8aea4730 (connection ke backend)
 
 
 class StatusUpdate(BaseModel):
@@ -117,15 +107,11 @@ async def daftar_laporan(limit: int = 100, offset: int = 0):
             .execute()
         )
         all_data = stats_response.data
-        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         total = len(all_data)
         tinggi = sum(1 for r in all_data if r.get("prediksi_urgensi") == "Tinggi")
         aktif = sum(1 for r in all_data if r.get("status") not in ("Selesai", "Ditolak"))
-        selesai_hari_ini = sum(
-            1 for r in all_data
-            if r.get("status") == "Selesai" and (r.get("updated_at") or "").startswith(today_str)
-        )
+        selesai = sum(1 for r in all_data if r.get("status") == "Selesai")
 
         return {
             "data": response.data,
@@ -133,7 +119,7 @@ async def daftar_laporan(limit: int = 100, offset: int = 0):
                 "total": total,
                 "tinggi": tinggi,
                 "aktif": aktif,
-                "selesaiHariIni": selesai_hari_ini,
+                "selesaiHariIni": selesai,
             },
         }
 
@@ -183,9 +169,9 @@ async def update_status_laporan(ticket_id: str, body: StatusUpdate):
         if not check.data:
             raise HTTPException(status_code=404, detail=f"Laporan {ticket_id} tidak ditemukan")
 
-        # Do the update — response.data may be empty depending on Supabase config; that's OK
+        # Do the update — sertakan updated_at agar selesai_hari_ini terhitung benar
         supabase.table("laporan") \
-            .update({"status": body.status}) \
+            .update({"status": body.status, "updated_at": datetime.now(timezone.utc).isoformat()}) \
             .eq("ticket_id", ticket_id) \
             .execute()
 

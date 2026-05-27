@@ -39,21 +39,15 @@ const STEPS = [
   { n: '03', label: 'Bukti'       },
 ]
 
-function generateTicketId() {
-  const year = new Date().getFullYear()
-  const num  = Math.floor(1000 + Math.random() * 9000)
-  return `CRM-${year}-${num}`
-}
 
 /* ============================================================
    ATOMS — shared with landing page aesthetic
    ============================================================ */
 function LogoBox({ size = 28 }: { size?: number }) {
   return (
-    <div
-      style={{ width: size, height: size, border: '1px dashed #0a0a0a', display: 'inline-block' }}
-      aria-label="Logo SIPEDULI"
-    />
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/logo.png" alt="Logo SIPEDULI"
+      style={{ width: size, height: size, objectFit: 'contain', display: 'inline-block' }} />
   )
 }
 

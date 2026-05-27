@@ -181,6 +181,55 @@ const PROVINCES: Province[] = [
 ]
 
 /* ============================================================
+   PROVINCE MATCHING — maps lokasi free-text → province id
+   ============================================================ */
+const PROVINCE_KEYWORDS: Record<string, string[]> = {
+  dki:     ['jakarta', 'dki'],
+  jatim:   ['surabaya', 'malang', 'jawa timur', 'jatim', 'sidoarjo', 'gresik', 'mojokerto', 'kediri', 'banyuwangi', 'jember', 'pasuruan', 'blitar', 'madiun', 'probolinggo'],
+  jabar:   ['bandung', 'jawa barat', 'jabar', 'bogor', 'bekasi', 'depok', 'cimahi', 'cirebon', 'karawang', 'tasikmalaya', 'sukabumi', 'cianjur'],
+  jateng:  ['semarang', 'jawa tengah', 'jateng', 'solo', 'surakarta', 'magelang', 'tegal', 'pekalongan', 'kudus', 'purwokerto', 'cilacap'],
+  diy:     ['yogyakarta', 'jogja', 'diy', 'sleman', 'bantul', 'gunung kidul', 'kulon progo'],
+  bali:    ['bali', 'denpasar', 'badung', 'gianyar', 'tabanan', 'buleleng'],
+  banten:  ['banten', 'tangerang', 'serang', 'cilegon'],
+  sumut:   ['medan', 'sumatera utara', 'sumut', 'binjai', 'pematang siantar'],
+  lampung: ['lampung', 'bandar lampung', 'metro'],
+  kalbar:  ['kalimantan barat', 'kalbar', 'pontianak', 'singkawang'],
+  kaltim:  ['kalimantan timur', 'kaltim', 'samarinda', 'balikpapan', 'bontang'],
+  sulsel:  ['sulawesi selatan', 'sulsel', 'makassar', 'parepare', 'palopo'],
+  maluku:  ['maluku', 'ambon', 'ternate'],
+  papua:   ['papua', 'jayapura', 'timika', 'manokwari', 'sorong'],
+  ntt:     ['ntt', 'kupang', 'nusa tenggara timur', 'ende', 'flores', 'labuan bajo'],
+}
+
+function matchProvinceId(lokasi: string): string | null {
+  const loc = lokasi.toLowerCase()
+  for (const [id, kws] of Object.entries(PROVINCE_KEYWORDS)) {
+    if (kws.some(kw => loc.includes(kw))) return id
+  }
+  return null
+}
+
+function computeProvinces(reports: Report[]): Province[] {
+  const counts: Record<string, { hi: number; md: number; lo: number }> = {}
+  reports.forEach(r => {
+    const pid = matchProvinceId(r.loc)
+    if (!pid) return
+    if (!counts[pid]) counts[pid] = { hi: 0, md: 0, lo: 0 }
+    counts[pid][r.urg]++
+  })
+  return PROVINCES.map(p => {
+    const c = counts[p.id] ?? { hi: 0, md: 0, lo: 0 }
+    const total = c.hi + c.md + c.lo
+    const lvl: LvlKey =
+      c.hi >= 5 ? 'red-dark'  :
+      c.hi >= 2 ? 'red-light' :
+      c.hi >= 1 ? 'amber'     :
+      total >= 1 ? 'yellow'   : 'gray'
+    return { ...p, total, hi: c.hi, md: c.md, lo: c.lo, lvl }
+  })
+}
+
+/* ============================================================
    ATOMS
    ============================================================ */
 function Badge({ urg }: { urg: Urg }) {
@@ -261,7 +310,8 @@ function Sidebar({ active, onChange, totalCount }: { active: NavKey; onChange: (
   return (
     <aside className="sidebar">
       <div className="sb-top">
-        <span className="sb-logo" aria-label="Logo SIPEDULI" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Logo SIPEDULI" className="sb-logo" />
         <span className="sb-brand">
           <span className="nm">SIPEDULI</span>
           <span className="sub">ADMIN PANEL</span>
@@ -396,32 +446,33 @@ function TopBar({ active, onLogout, notifications, onMarkRead }: { active: NavKe
 /* ============================================================
    KPI
    ============================================================ */
-function KPI({ stats }: { stats: Stats }) {
+function KPI({ stats, isLoaded }: { stats: Stats; isLoaded: boolean }) {
   const total  = useCountUp(stats.total,           { duration: 1400, delay: 200 })
   const tinggi = useCountUp(stats.tinggi,          { duration: 1200, delay: 280 })
   const aktif  = useCountUp(stats.aktif,           { duration: 1300, delay: 360 })
   const done   = useCountUp(stats.selesaiHariIni,  { duration: 1100, delay: 440 })
+  const dash   = <span style={{ opacity: 0.35 }}>—</span>
   return (
     <div className="kpi-grid">
       <div className="kpi">
         <div className="lbl">TOTAL LAPORAN</div>
-        <div className="num">{total}</div>
+        <div className="num">{isLoaded ? total : dash}</div>
         <div className="sub">SELURUH LAPORAN MASUK</div>
       </div>
       <div className="kpi alert">
         <div className="lbl">PRIORITAS TINGGI</div>
-        <div className="num red">{tinggi}</div>
+        <div className="num red">{isLoaded ? tinggi : dash}</div>
         <div className="sub">MEMBUTUHKAN TINDAKAN</div>
       </div>
       <div className="kpi ink">
         <div className="lbl">LAPORAN AKTIF</div>
-        <div className="num">{aktif}</div>
+        <div className="num">{isLoaded ? aktif : dash}</div>
         <div className="sub">SEDANG DIPROSES</div>
       </div>
       <div className="kpi green">
-        <div className="lbl">SELESAI HARI INI</div>
-        <div className="num green">{done}</div>
-        <div className="sub">STATUS SELESAI</div>
+        <div className="lbl">TOTAL SELESAI</div>
+        <div className="num green">{isLoaded ? done : dash}</div>
+        <div className="sub">KASUS DITUTUP</div>
       </div>
     </div>
   )
@@ -430,7 +481,7 @@ function KPI({ stats }: { stats: Stats }) {
 /* ============================================================
    MAP
    ============================================================ */
-function CrimeMap() {
+function CrimeMap({ provinces }: { provinces: Province[] }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [tip, setTip] = useState<{ p: Province; x: number; y: number } | null>(null)
 
@@ -453,7 +504,7 @@ function CrimeMap() {
         </g>
         {MAP_CONTEXT.map(c => <polygon key={c.id} className="prov-bg" points={c.points} />)}
         {MAP_DOTS.map((d, i)    => <circle key={i} className="dot" cx={d.cx} cy={d.cy} r={d.r} />)}
-        {PROVINCES.map(p => (
+        {provinces.map(p => (
           <g key={p.id} onMouseEnter={e => onEnter(p, e)} onMouseMove={e => onEnter(p, e)} onMouseLeave={() => setTip(null)}>
             <polygon className="prov" points={p.points} fill={LVL_COLOR[p.lvl]} />
             <text x={p.label.x} y={p.label.y} textAnchor="middle" className={`prov-label ${LVL_TEXT_LIGHT[p.lvl] ? 'light' : ''}`}>
@@ -488,10 +539,11 @@ function CrimeMap() {
   )
 }
 
-function MapPanel() {
-  const sorted = [...PROVINCES].sort((a, b) => b.total - a.total)
-  const top5   = sorted.slice(0, 5)
-  const max    = top5[0].total
+function MapPanel({ reports }: { reports: Report[] }) {
+  const provinces = useMemo(() => computeProvinces(reports), [reports])
+  const sorted = [...provinces].sort((a, b) => b.total - a.total)
+  const top5   = sorted.slice(0, 5).filter(p => p.total > 0)
+  const max    = top5[0]?.total || 1
   return (
     <div className="map-panel">
       <div className="map-card">
@@ -506,7 +558,7 @@ function MapPanel() {
             ))}
           </div>
         </div>
-        <CrimeMap />
+        <CrimeMap provinces={provinces} />
       </div>
       <div className="rank-card">
         <div className="hd">
@@ -851,6 +903,37 @@ function Placeholder({ title, meta, body }: { title: string; meta: string; body:
 }
 
 /* ============================================================
+   URGENCY ALERT
+   ============================================================ */
+function UrgencyAlert({ count, onDismiss, onAction }: {
+  count: number
+  onDismiss: () => void
+  onAction: () => void
+}) {
+  return (
+    <div className="urgency-alert" role="alertdialog" aria-label="Peringatan urgensi tinggi">
+      <div className="ua-head">
+        <div className="ua-label">
+          <span className="live-dot red" />
+          URGENSI TINGGI
+        </div>
+        <button className="ua-dismiss" onClick={onDismiss} aria-label="Tutup peringatan">✕</button>
+      </div>
+      <div className="ua-body">
+        <div className="ua-num">{count}</div>
+        <div className="ua-text">
+          <div className="t">Kasus membutuhkan<br />penanganan segera</div>
+          <div className="s">BELUM DITINDAK</div>
+        </div>
+      </div>
+      <button className="ua-btn" onClick={onAction}>
+        TANGANI SEKARANG →
+      </button>
+    </div>
+  )
+}
+
+/* ============================================================
    PAGE — default export
    ============================================================ */
 export default function DashboardPage() {
@@ -860,9 +943,12 @@ export default function DashboardPage() {
   const [statuses,   setStatuses]   = useState<Record<string, Status>>({})
   const [reports,    setReports]    = useState<Report[]>([])
   const [stats,      setStats]      = useState<Stats>({ total: 0, tinggi: 0, aktif: 0, selesaiHariIni: 0 })
-  const [newReports, setNewReports] = useState<Report[]>([])
-  const seenIdsRef   = useRef<Set<string>>(new Set())
-  const isFirstFetch = useRef(true)
+  const [newReports,    setNewReports]    = useState<Report[]>([])
+  const [isLoaded,      setIsLoaded]      = useState(false)
+  const [alertVisible,  setAlertVisible]  = useState(false)
+  const seenIdsRef      = useRef<Set<string>>(new Set())
+  const isFirstFetch    = useRef(true)
+  const alertShownOnce  = useRef(false)
 
   useEffect(() => {
     const session = localStorage.getItem('sipeduli_admin')
@@ -879,6 +965,7 @@ export default function DashboardPage() {
       setReports(fetched)
       setStats(json.stats as Stats)
 
+      setIsLoaded(true)
       if (isFirstFetch.current) {
         // Tandai semua laporan yang sudah ada sebagai "sudah dilihat"
         fetched.forEach(r => seenIdsRef.current.add(r.id))
@@ -916,6 +1003,24 @@ export default function DashboardPage() {
   const markAllRead = useCallback(() => {
     setNewReports([])
   }, [])
+
+  // Tampilkan alert saat pertama load jika ada Tinggi, atau saat laporan Tinggi baru masuk
+  useEffect(() => {
+    if (isLoaded && !alertShownOnce.current && reports.some(r => r.urg === 'hi')) {
+      setAlertVisible(true)
+      alertShownOnce.current = true
+    }
+  }, [isLoaded, reports])
+
+  useEffect(() => {
+    if (newReports.some(r => r.urg === 'hi')) {
+      setAlertVisible(true)
+    }
+  }, [newReports])
+
+  const totalSelesai = useMemo(() =>
+    reports.filter(r => (statuses[r.id] ?? r.status) === 'done').length
+  , [reports, statuses])
 
   const handleLogout = () => {
     localStorage.removeItem('sipeduli_admin')
@@ -964,8 +1069,8 @@ export default function DashboardPage() {
         <TopBar active={active} onLogout={handleLogout} notifications={notifications} onMarkRead={markAllRead} />
         {active === 'dashboard' && (
           <>
-            <KPI stats={stats} />
-            <MapPanel />
+            <KPI stats={{ ...stats, selesaiHariIni: totalSelesai }} isLoaded={isLoaded} />
+            <MapPanel reports={reports} />
             <div className="tbl-feed-grid">
               <ReportsTable onOpen={setSelected} statuses={statuses} reports={reports} total={stats.total} />
               <FeedPanel onOpen={setSelected} reports={reports} />
@@ -979,7 +1084,7 @@ export default function DashboardPage() {
         )}
         {active === 'peta' && (
           <div style={{ padding: '14px 24px 24px' }}>
-            <MapPanel />
+            <MapPanel reports={reports} />
           </div>
         )}
         {active === 'pengaturan' && (
@@ -996,6 +1101,13 @@ export default function DashboardPage() {
           status={currentStatus}
           onUpdateStatus={updateStatus}
           onClose={() => setSelected(null)}
+        />
+      )}
+      {alertVisible && (
+        <UrgencyAlert
+          count={reports.filter(r => r.urg === 'hi').length}
+          onDismiss={() => setAlertVisible(false)}
+          onAction={() => { setAlertVisible(false); setActive('laporan') }}
         />
       )}
     </div>
