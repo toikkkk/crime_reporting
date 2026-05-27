@@ -65,6 +65,9 @@ interface MapDot    { cx: number; cy: number; r: number }
 interface Notif     { id: string; urg: Urg; title: string; msg: string; time: string }
 interface FotoBukti { id: string; filename: string; storage_url: string; file_size: number; mime_type: string }
 
+interface ExplainFeature { name: string; label: string; value: number }
+interface Explain { tipe_kejahatan: string; shap_features: ExplainFeature[]; base_value: number }
+
 /* ============================================================
    HELPERS
    ============================================================ */
@@ -266,6 +269,60 @@ function HighlightedText({ text, keywords = [] }: { text: string; keywords?: str
 
 function confColor(urg: Urg) {
   return urg === 'hi' ? 'var(--alert)' : urg === 'md' ? 'var(--amber)' : 'var(--green)'
+}
+
+function TipeBadge({ tipe, urg, loading }: { tipe?: string; urg: Urg; loading: boolean }) {
+  if (loading) return <div className="tipe-badge loading">MEMUAT TIPE KEJAHATAN</div>
+  return (
+    <div className={`tipe-badge ${urg}`}>
+      TIPE: {(tipe ?? 'Umum / Tidak Terklasifikasi').toUpperCase()}
+    </div>
+  )
+}
+
+function ShapChart({ features, loading }: { features: ExplainFeature[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="shap-list">
+        {[1, 0.85, 0.7, 0.55, 0.4].map((op, i) => (
+          <div key={i} className="shap-skel-row" style={{ opacity: op }}>
+            <div className="shap-skel" />
+            <div className="shap-skel" />
+            <div className="shap-skel" style={{ width: '60%' }} />
+          </div>
+        ))}
+      </div>
+    )
+  }
+  if (!features.length) {
+    return <span style={{ color: 'var(--g500)', fontSize: 13 }}>Data SHAP tidak tersedia.</span>
+  }
+  const maxVal = Math.max(...features.map(f => Math.abs(f.value)), 0.001)
+  return (
+    <div>
+      <div className="shap-list">
+        {features.map((f, i) => {
+          const pct = Math.min(48, (Math.abs(f.value) / maxVal) * 48)
+          const isPos = f.value >= 0
+          return (
+            <div key={i} className="shap-row">
+              <span className="shap-lbl" title={f.label}>{f.label}</span>
+              <div className="shap-bar-wrap">
+                <div className={`shap-bar ${isPos ? 'pos' : 'neg'}`} style={{ width: pct + '%' }} />
+              </div>
+              <span className={`shap-val ${isPos ? 'pos' : 'neg'}`}>
+                {isPos ? '+' : ''}{f.value.toFixed(2)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="shap-legend">
+        <span className="neg-lbl">← MENURUNKAN SKOR</span>
+        <span className="pos-lbl">MENINGKATKAN SKOR →</span>
+      </div>
+    </div>
+  )
 }
 
 function useCountUp(target: number, { duration = 1200, delay = 0, decimals = 0 }: { duration?: number; delay?: number; decimals?: number } = {}) {
@@ -740,6 +797,8 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
   const [ddOpen, setDdOpen] = useState(false)
   const [fotos, setFotos] = useState<FotoBukti[]>([])
   const [fotosLoading, setFotosLoading] = useState(true)
+  const [explain, setExplain] = useState<Explain | null>(null)
+  const [explainLoading, setExplainLoading] = useState(true)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -757,6 +816,21 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
       .catch(() => setFotos([]))
       .finally(() => setFotosLoading(false))
   }, [report.id])
+
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    setExplainLoading(true)
+    setExplain(null)
+    fetch(`${apiUrl}/api/explain`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deskripsi: report.kron }),
+    })
+      .then(r => r.json())
+      .then(d => setExplain(d))
+      .catch(() => setExplain(null))
+      .finally(() => setExplainLoading(false))
+  }, [report.kron])
 
   const order: Status[] = ['recv', 'anal', 'inv', 'done']
   const stIdx = order.indexOf(status)
@@ -801,6 +875,7 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
             <span className={`urg-big ${report.urg}`}>
               {report.urg === 'hi' ? 'TINGGI' : report.urg === 'md' ? 'SEDANG' : 'RENDAH'}
             </span>
+            <TipeBadge tipe={explain?.tipe_kejahatan} urg={report.urg} loading={explainLoading} />
             <div className="conf-bar-wrap">
               <div className={`conf-bar ${confCls}`}><i style={{ width: report.conf + '%' }} /></div>
               <div className="conf-lbl">{report.conf}% CONFIDENCE SCORE</div>
@@ -822,6 +897,8 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
                 </div>
               ))}
             </div>
+            <div className="sec-lbl" style={{ marginTop: 18 }}>KONTRIBUSI FITUR (SHAP)</div>
+            <ShapChart features={explain?.shap_features ?? []} loading={explainLoading} />
           </div>
         </div>
 
@@ -1004,13 +1081,22 @@ export default function DashboardPage() {
     setNewReports([])
   }, [])
 
-  // Tampilkan alert saat pertama load jika ada Tinggi, atau saat laporan Tinggi baru masuk
+  const tinggiAktif = useMemo(() =>
+    reports.filter(r => r.urg === 'hi' && (statuses[r.id] ?? r.status) !== 'done').length
+  , [reports, statuses])
+
+  // Tampilkan alert saat pertama load jika ada Tinggi yang belum selesai
   useEffect(() => {
-    if (isLoaded && !alertShownOnce.current && reports.some(r => r.urg === 'hi')) {
+    if (isLoaded && !alertShownOnce.current && tinggiAktif > 0) {
       setAlertVisible(true)
       alertShownOnce.current = true
     }
-  }, [isLoaded, reports])
+  }, [isLoaded, tinggiAktif])
+
+  // Sembunyikan alert otomatis jika semua Tinggi sudah selesai
+  useEffect(() => {
+    if (alertVisible && tinggiAktif === 0) setAlertVisible(false)
+  }, [tinggiAktif, alertVisible])
 
   useEffect(() => {
     if (newReports.some(r => r.urg === 'hi')) {
@@ -1103,9 +1189,9 @@ export default function DashboardPage() {
           onClose={() => setSelected(null)}
         />
       )}
-      {alertVisible && (
+      {alertVisible && tinggiAktif > 0 && (
         <UrgencyAlert
-          count={reports.filter(r => r.urg === 'hi').length}
+          count={tinggiAktif}
           onDismiss={() => setAlertVisible(false)}
           onAction={() => { setAlertVisible(false); setActive('laporan') }}
         />

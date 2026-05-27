@@ -20,6 +20,7 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'SIPEDULI — Sistem Pelaporan Kejahatan Terpadu',
   description: 'Platform pelaporan kejahatan resmi yang terhubung langsung dengan aparat berwenang.',
+  icons: { icon: '/logo.png' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

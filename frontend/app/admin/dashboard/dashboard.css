@@ -661,3 +661,79 @@ html.dark .photos { border-top-color: #2f2f2f; }
 html.dark .photo { background: #232323; border-color: #2f2f2f; }
 html.dark .photo.empty { background: #1c1c1c; }
 html.dark .photo .ph-img { color: #6b7280; }
+
+/* ============================================================
+   CRIME TYPE BADGE
+   ============================================================ */
+.tipe-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 10px; padding: 5px 12px;
+  border: 1px solid var(--g200); border-left: 3px solid var(--g400);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--g600);
+}
+.tipe-badge.hi { border-left-color: var(--alert); color: var(--alert); }
+.tipe-badge.md { border-left-color: var(--amber); color: #8a6300; }
+.tipe-badge.lo { border-left-color: var(--green); color: #166534; }
+
+/* Skeleton state */
+.tipe-badge.loading { color: transparent; background: linear-gradient(90deg, var(--g100) 25%, var(--g200) 50%, var(--g100) 75%); background-size: 400px 100%; animation: shimmerEl 1.4s ease-in-out infinite; border-color: var(--g100); border-left-color: var(--g200); pointer-events: none; min-width: 120px; }
+@keyframes shimmerEl { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+
+/* ============================================================
+   SHAP FEATURE CHART
+   ============================================================ */
+.shap-list { display: flex; flex-direction: column; gap: 7px; }
+.shap-row { display: grid; grid-template-columns: 110px 1fr 46px; align-items: center; gap: 8px; }
+.shap-lbl {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px; letter-spacing: 0.06em; font-weight: 700;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--g600);
+}
+.shap-bar-wrap {
+  position: relative; height: 14px;
+}
+.shap-bar-wrap::after {
+  content: ''; position: absolute; left: 50%; top: 1px; bottom: 1px;
+  width: 1px; background: var(--g300);
+}
+.shap-bar {
+  position: absolute; height: 10px; top: 2px;
+  border-radius: 4px;
+  transition: width 0.7s cubic-bezier(.2,.7,.2,1);
+}
+.shap-bar.pos { background: var(--alert); left: 50%; border-radius: 0 4px 4px 0; }
+.shap-bar.neg { background: var(--green); right: 50%; border-radius: 4px 0 0 4px; }
+.shap-val {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px; font-weight: 700; text-align: right; white-space: nowrap;
+}
+.shap-val.pos { color: var(--alert); }
+.shap-val.neg { color: var(--green); }
+.shap-legend {
+  display: flex; justify-content: space-between;
+  padding: 6px 0 0 110px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9px; letter-spacing: 0.10em; text-transform: uppercase; font-weight: 700;
+}
+.shap-legend .neg-lbl { color: var(--green); }
+.shap-legend .pos-lbl { color: var(--alert); }
+
+/* Skeleton rows while SHAP loads */
+.shap-skel-row { display: grid; grid-template-columns: 110px 1fr 46px; gap: 8px; align-items: center; }
+.shap-skel { height: 10px; border-radius: 4px; background: linear-gradient(90deg, var(--g100) 25%, var(--g200) 50%, var(--g100) 75%); background-size: 400px 100%; animation: shimmerEl 1.4s ease-in-out infinite; }
+
+/* Dark mode — tipe badge */
+html.dark .tipe-badge { border-color: #3f3f46; color: #9ca3af; border-left-color: #4b5563; }
+html.dark .tipe-badge.hi { border-left-color: var(--alert); color: #fca5a5; }
+html.dark .tipe-badge.md { border-left-color: var(--amber); color: #fcd34d; }
+html.dark .tipe-badge.lo { border-left-color: var(--green); color: #86efac; }
+html.dark .tipe-badge.loading { background: linear-gradient(90deg, #232323 25%, #2f2f2f 50%, #232323 75%); background-size: 400px 100%; border-color: #2f2f2f; border-left-color: #3f3f46; }
+
+/* Dark mode — SHAP chart */
+html.dark .shap-lbl { color: #d4d4d8; }
+html.dark .shap-bar-wrap::after { background: #3f3f46; }
+html.dark .shap-skel { background: linear-gradient(90deg, #232323 25%, #2f2f2f 50%, #232323 75%); background-size: 400px 100%; }

@@ -17,6 +17,7 @@ pandas==2.2.3
 numpy==1.26.4
 joblib==1.4.2
 nltk==3.9.1
+shap==0.46.0
 Sastrawi==1.0.1          # Stemmer Bahasa Indonesia
 
 # ─── MLflow ──────────────────────────────────────────────────────

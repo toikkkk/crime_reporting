@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from app.ml.preprocessor import jalankan_pipeline_ml
+from app.ml.preprocessor import jalankan_pipeline_ml, compute_shap_explanation
 from app.db.client import supabase
 
 load_dotenv()
@@ -40,9 +40,26 @@ class StatusUpdate(BaseModel):
     status: str
 
 
+class ExplainRequest(BaseModel):
+    deskripsi: str
+
+
 @app.get("/")
 def read_root():
     return {"message": "SIPEDULI Backend is running!"}
+
+
+@app.post("/api/explain")
+async def explain_laporan(body: ExplainRequest):
+    """Hitung SHAP values + tipe kejahatan untuk teks laporan (on-demand)."""
+    if not body.deskripsi.strip():
+        raise HTTPException(status_code=400, detail="Deskripsi tidak boleh kosong")
+    try:
+        result = compute_shap_explanation(body.deskripsi)
+        return result
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/laporan")
