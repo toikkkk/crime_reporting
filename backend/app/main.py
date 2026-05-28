@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from app.ml.preprocessor import jalankan_pipeline_ml, compute_shap_explanation
+from ml.preprocessor import jalankan_pipeline_ml, compute_shap_explanation
 from app.db.client import supabase
 
 load_dotenv()
