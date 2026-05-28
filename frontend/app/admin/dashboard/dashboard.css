@@ -336,6 +336,19 @@ table.dt tbody tr:hover td.act button { color: var(--ink); }
 .btn-ghost { background: #fff; color: var(--ink); padding: 0 16px; height: 38px; border: 1px solid var(--ink); font-family: var(--font-dm-sans), sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 4px; display: inline-flex; align-items: center; gap: 8px; transition: background-color 0.2s ease; }
 .btn-ghost:hover { background: var(--g50); }
 
+/* ---- Catatan Petugas ---- */
+.catatan-wrap { padding: 0 24px 4px; }
+.catatan-box { background: var(--g50); border: 1px solid var(--g200); border-radius: 4px; padding: 14px 16px; }
+.catatan-box p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--ink); white-space: pre-wrap; }
+.catatan-edit { margin-top: 10px; display: inline-block; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: var(--g500); border-bottom: 1px dashed var(--g400); padding-bottom: 1px; cursor: pointer; }
+.catatan-edit:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.catatan-empty { font-size: 13px; color: var(--g500); font-style: italic; }
+.catatan-form { display: flex; flex-direction: column; gap: 10px; }
+.catatan-ta { width: 100%; border: 1px solid var(--g200); border-radius: 4px; padding: 12px 14px; font-size: 14px; font-family: var(--font-dm-sans), sans-serif; color: var(--ink); resize: vertical; outline: none; line-height: 1.6; transition: border-color 0.2s ease; }
+.catatan-ta:focus { border-color: var(--ink); }
+.catatan-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.catatan-saved { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); font-weight: 700; }
+
 .dd-menu { position: absolute; right: 0; top: calc(100% + 6px); background: #fff; border: 1px solid var(--ink); border-radius: 4px; box-shadow: 0 14px 30px -14px rgba(0,0,0,0.25); min-width: 180px; overflow: hidden; z-index: 60; }
 .dd-menu button { display: block; width: 100%; text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--g100); transition: background-color 0.15s ease; }
 .dd-menu button:hover { background: var(--g50); }
@@ -659,6 +672,11 @@ html.dark .tl-step.done .node { background: #f5f5f5; border-color: #f5f5f5; colo
 html.dark .tl-step .lbl { color: #6b7280; }
 html.dark .tl-step.done .lbl, html.dark .tl-step.curr .lbl { color: #f5f5f5; }
 html.dark .tl-step .meta { color: #6b7280; }
+html.dark .catatan-box { background: #232323; border-color: #2f2f2f; }
+html.dark .catatan-box p { color: #f0f0f0; }
+html.dark .catatan-ta { background: #1c1c1c; border-color: #3f3f46; color: #f0f0f0; }
+html.dark .catatan-ta:focus { border-color: #f5f5f5; }
+html.dark .catatan-empty { color: #6b7280; }
 html.dark .tl-actions .l { color: #9ca3af; }
 html.dark .btn-dark { background: #f5f5f5; color: #0a0a0a; }
 html.dark .btn-dark:hover { background: #ffffff; }

@@ -32,6 +32,7 @@ interface Report {
   status: Status
   keywords: string[]
   dist: { hi: number; md: number; lo: number }
+  catatan: string | null
 }
 
 interface DbLaporan {
@@ -47,6 +48,7 @@ interface DbLaporan {
   keywords_detected: string[] | null
   status: string
   created_at: string
+  catatan_petugas: string | null
 }
 
 interface Stats {
@@ -133,6 +135,7 @@ function dbToReport(row: DbLaporan, idx: number): Report {
     status:   mapStatus(row.status),
     keywords: row.keywords_detected || [],
     dist:     calcDist(urg, conf),
+    catatan:  row.catatan_petugas ?? null,
   }
 }
 
@@ -768,11 +771,15 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
   onUpdateStatus: (id: string, st: Status) => void
   onClose: () => void
 }) {
-  const [ddOpen, setDdOpen] = useState(false)
-  const [fotos, setFotos] = useState<FotoBukti[]>([])
-  const [fotosLoading, setFotosLoading] = useState(true)
-  const [explain, setExplain] = useState<Explain | null>(null)
+  const [ddOpen,         setDdOpen]         = useState(false)
+  const [fotos,          setFotos]          = useState<FotoBukti[]>([])
+  const [fotosLoading,   setFotosLoading]   = useState(true)
+  const [explain,        setExplain]        = useState<Explain | null>(null)
   const [explainLoading, setExplainLoading] = useState(true)
+  const [catatanText,    setCatatanText]    = useState(report.catatan ?? '')
+  const [catatanOpen,    setCatatanOpen]    = useState(false)
+  const [catatanSaving,  setCatatanSaving]  = useState(false)
+  const [catatanSaved,   setCatatanSaved]   = useState(false)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -915,6 +922,80 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
           </div>
         </div>
 
+        {/* Catatan Petugas */}
+        <div className="catatan-wrap">
+          <div className="sec-lbl" style={{ marginBottom: 10 }}>CATATAN PETUGAS</div>
+
+          {/* Tampilkan catatan existing jika ada dan form tidak dibuka */}
+          {!catatanOpen && catatanText && (
+            <div className="catatan-box">
+              <p>{catatanText}</p>
+              <button className="catatan-edit" onClick={() => { setCatatanOpen(true); setCatatanSaved(false) }}>
+                EDIT CATATAN
+              </button>
+            </div>
+          )}
+
+          {/* Placeholder jika belum ada catatan dan form tidak dibuka */}
+          {!catatanOpen && !catatanText && (
+            <div className="catatan-empty">
+              Belum ada catatan untuk laporan ini.
+            </div>
+          )}
+
+          {/* Form tambah/edit catatan */}
+          {catatanOpen && (
+            <div className="catatan-form">
+              <textarea
+                className="catatan-ta"
+                rows={4}
+                placeholder="Tulis catatan untuk pelapor (akan ditampilkan di halaman cek status laporan)..."
+                value={catatanText}
+                onChange={e => { setCatatanText(e.target.value); setCatatanSaved(false) }}
+              />
+              <div className="catatan-actions">
+                <button className="btn-ghost" onClick={() => { setCatatanOpen(false); setCatatanText(report.catatan ?? '') }}>
+                  Batal
+                </button>
+                <button
+                  className="btn-dark"
+                  disabled={catatanSaving || !catatanText.trim()}
+                  onClick={async () => {
+                    setCatatanSaving(true)
+                    try {
+                      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+                      const res = await fetch(`${apiUrl}/api/laporan/${report.id}/catatan`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ catatan: catatanText }),
+                      })
+                      if (!res.ok) throw new Error('Gagal menyimpan')
+                      setCatatanSaved(true)
+                      setCatatanOpen(false)
+                    } catch {
+                      alert('Gagal menyimpan catatan. Coba lagi.')
+                    } finally {
+                      setCatatanSaving(false)
+                    }
+                  }}
+                >
+                  {catatanSaving ? 'MENYIMPAN...' : 'SIMPAN CATATAN'}
+                </button>
+              </div>
+              {catatanSaved && (
+                <div className="catatan-saved">✓ Catatan berhasil disimpan dan akan tampil di halaman cek status.</div>
+              )}
+            </div>
+          )}
+
+          {/* Tombol tambah jika belum ada catatan dan form belum dibuka */}
+          {!catatanOpen && !catatanText && (
+            <button className="btn-ghost" style={{ marginTop: 8 }} onClick={() => { setCatatanOpen(true); setCatatanSaved(false) }}>
+              + TAMBAH CATATAN
+            </button>
+          )}
+        </div>
+
         {/* Actions */}
         <div className="tl-actions">
           <div className="l">PETUGAS: Polrestabes · Unit IV</div>
@@ -922,7 +1003,7 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
             <div style={{ position: 'relative' }}>
               <button className="btn-dark" onClick={() => setDdOpen(o => !o)}>UPDATE STATUS ▾</button>
               {ddOpen && (
-                <div className="dd-menu">
+                <div className="dd-menu" style={{ top: 'auto', bottom: 'calc(100% + 6px)' }}>
                   {tlSteps.map(s => (
                     <button key={s.k} onClick={() => { onUpdateStatus(report.id, s.k); setDdOpen(false) }}>
                       {s.l}
@@ -931,7 +1012,6 @@ function Modal({ report, status, onUpdateStatus, onClose }: {
                 </div>
               )}
             </div>
-            <button className="btn-ghost">+ TAMBAH CATATAN</button>
           </div>
         </div>
       </div>

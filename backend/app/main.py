@@ -40,6 +40,10 @@ class StatusUpdate(BaseModel):
     status: str
 
 
+class CatatanUpdate(BaseModel):
+    catatan: str
+
+
 class ExplainRequest(BaseModel):
     deskripsi: str
 
@@ -196,6 +200,26 @@ async def update_status_laporan(ticket_id: str, body: StatusUpdate):
 
     except HTTPException:
         raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/api/laporan/{ticket_id}/catatan")
+async def update_catatan_laporan(ticket_id: str, body: CatatanUpdate):
+    if supabase is None:
+        raise HTTPException(status_code=503, detail="Database belum terhubung")
+
+    check = supabase.table("laporan").select("ticket_id").eq("ticket_id", ticket_id.upper()).execute()
+    if not check.data:
+        raise HTTPException(status_code=404, detail=f"Laporan {ticket_id} tidak ditemukan")
+
+    try:
+        supabase.table("laporan") \
+            .update({"catatan_petugas": body.catatan.strip(), "updated_at": datetime.now(timezone.utc).isoformat()}) \
+            .eq("ticket_id", ticket_id.upper()) \
+            .execute()
+        return {"status": "success", "ticket_id": ticket_id}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

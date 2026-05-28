@@ -381,6 +381,7 @@ interface DbLaporanPublic {
   status: string
   created_at: string
   updated_at: string
+  catatan_petugas: string | null
 }
 
 function timeAgo(iso: string): string {
@@ -393,7 +394,7 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)} hari lalu`
 }
 
-function dbToStatusEntry(row: DbLaporanPublic): StatusEntry & { ticketId: string } {
+function dbToStatusEntry(row: DbLaporanPublic): StatusEntry & { ticketId: string; catatan: string | null } {
   const stageMap: Record<string, number> = {
     'Diterima': 0, 'Dianalisis': 1, 'Dalam Penyelidikan': 2, 'Selesai': 3, 'Ditolak': 3,
   }
@@ -406,12 +407,13 @@ function dbToStatusEntry(row: DbLaporanPublic): StatusEntry & { ticketId: string
     loc:      row.lokasi || '-',
     updated:  timeAgo(row.updated_at || row.created_at),
     officer:  'Petugas SIPEDULI',
+    catatan:  row.catatan_petugas ?? null,
   }
 }
 
 function Tracker() {
   const [q,          setQ]          = useState('')
-  const [result,     setResult]     = useState<(StatusEntry & { ticketId: string }) | null>(null)
+  const [result,     setResult]     = useState<(StatusEntry & { ticketId: string; catatan: string | null }) | null>(null)
   const [loading,    setLoading]    = useState(false)
   const [error,      setError]      = useState('')
   const [examples,   setExamples]   = useState<string[]>([])
@@ -629,6 +631,19 @@ function Tracker() {
                   </Link>
                 </div>
               </div>
+
+              {/* Catatan Petugas */}
+              {result.catatan && (
+                <div className="mt-8 border-t border-gray-200 pt-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500">CATATAN PETUGAS</div>
+                    <span className="inline-block w-[6px] h-[6px] bg-ink" />
+                  </div>
+                  <div className="bg-gray-50 border border-gray-200 r4 px-5 py-4">
+                    <p className="text-[15px] leading-[1.65] text-gray-700 whitespace-pre-wrap">{result.catatan}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
