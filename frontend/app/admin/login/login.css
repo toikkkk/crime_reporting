@@ -59,13 +59,6 @@ html, body { margin: 0; padding: 0; font-family: var(--font-dm-sans), system-ui,
   align-items: center;
   gap: 12px;
 }
-.login-logo-box {
-  width: 32px;
-  height: 32px;
-  border: 1px dashed var(--ink);
-  border-radius: 4px;
-  flex-shrink: 0;
-}
 .login-logo-name {
   font-weight: 700;
   font-size: 18px;
@@ -101,12 +94,14 @@ html, body { margin: 0; padding: 0; font-family: var(--font-dm-sans), system-ui,
   font-weight: 700;
 }
 .login-card-title {
-  font-weight: 700;
-  font-size: 24px;
+  font-family: var(--font-display), sans-serif;
+  font-weight: 400;
+  font-size: 32px;
   color: var(--ink);
   margin-top: 6px;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+  text-transform: uppercase;
 }
 
 /* ---- Form fields ---- */

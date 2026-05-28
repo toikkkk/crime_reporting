@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { DM_Sans, JetBrains_Mono } from 'next/font/google'
+import { DM_Sans, JetBrains_Mono, Anton } from 'next/font/google'
 import { ThemeProvider } from './components/ThemeProvider'
 import './globals.css'
 
@@ -17,6 +17,13 @@ const jetbrains = JetBrains_Mono({
   display: 'swap',
 })
 
+const anton = Anton({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-display',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'SIPEDULI — Sistem Pelaporan Kejahatan Terpadu',
   description: 'Platform pelaporan kejahatan resmi yang terhubung langsung dengan aparat berwenang.',
@@ -25,7 +32,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className={`${dmSans.variable} ${jetbrains.variable}`} suppressHydrationWarning>
+    <html lang="id" className={`${dmSans.variable} ${jetbrains.variable} ${anton.variable}`} suppressHydrationWarning>
       <body>
         <ThemeProvider>
           {children}

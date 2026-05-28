@@ -81,6 +81,52 @@ function RedLabel({ children, className = '' }: { children: React.ReactNode; cla
   return <div className={`text-alert text-[12px] font-bold tracking-[0.18em] uppercase ${className}`}>{children}</div>
 }
 
+function TypewriterLoop({ phrases, delay = 1200, speed = 75, deleteSpeed = 38, pauseMs = 2400, className = '' }: {
+  phrases: string[]; delay?: number; speed?: number; deleteSpeed?: number; pauseMs?: number; className?: string
+}) {
+  const [displayed, setDisplayed] = useState('')
+  const [active, setActive]       = useState(false)
+  const [idx, setIdx]             = useState(0)
+  const [phase, setPhase]         = useState<'typing' | 'deleting'>('typing')
+
+  useEffect(() => {
+    const t = setTimeout(() => setActive(true), delay)
+    return () => clearTimeout(t)
+  }, [delay])
+
+  useEffect(() => {
+    if (!active) return
+    const target = phrases[idx]
+
+    if (phase === 'typing') {
+      if (displayed.length < target.length) {
+        const t = setTimeout(() => setDisplayed(target.slice(0, displayed.length + 1)), speed)
+        return () => clearTimeout(t)
+      }
+      const t = setTimeout(() => setPhase('deleting'), pauseMs)
+      return () => clearTimeout(t)
+    }
+
+    if (phase === 'deleting') {
+      if (displayed.length > 0) {
+        const t = setTimeout(() => setDisplayed(d => d.slice(0, -1)), deleteSpeed)
+        return () => clearTimeout(t)
+      }
+      setIdx(i => (i + 1) % phrases.length)
+      setPhase('typing')
+    }
+  }, [active, displayed, phase, idx, phrases, speed, deleteSpeed, pauseMs])
+
+  return (
+    <span className={`${className} ${active ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
+      {displayed}
+      <span className="inline-block bg-current blink"
+        style={{ width: '4px', height: '0.78em', marginLeft: '4px', verticalAlign: 'middle' }}
+        aria-hidden="true" />
+    </span>
+  )
+}
+
 function MagneticButton({ children, onClick, variant = 'primary', className = '' }: { children: React.ReactNode; onClick?: () => void; variant?: 'primary' | 'ghost'; className?: string }) {
   const base = 'r4 inline-flex items-center justify-center font-bold text-[14px] tracking-[0.04em] uppercase px-7 py-4 relative overflow-hidden group hover:-translate-y-0.5 active:translate-y-0'
   if (variant === 'ghost') {
@@ -131,37 +177,26 @@ function Navbar({ onCTA }: { onCTA: () => void }) {
    ============================================================ */
 function Hero({ onReport, onTrack }: { onReport: () => void; onTrack: () => void }) {
   return (
-    <section id="beranda" className="bg-white relative overflow-hidden">
+    <section id="beranda" className="bg-gray-50 relative overflow-hidden">
       <div className="hero-grid absolute inset-0 pointer-events-none" aria-hidden="true">
-        <span className="grid-sq"    style={{ top: '18%', left: '14%' }} />
-        <span className="grid-sq alert" style={{ top: '32%', left: '22%' }} />
-        <span className="grid-sq"    style={{ top: '60%', left: '8%' }} />
-        <span className="grid-sq alert" style={{ top: '22%', right: '16%' }} />
-        <span className="grid-sq"    style={{ top: '48%', right: '10%' }} />
-        <span className="grid-sq"    style={{ bottom: '18%', right: '22%' }} />
-        <span className="grid-sq"    style={{ bottom: '28%', left: '30%' }} />
+        <span className="grid-sq alert" style={{ top: '28%', left: '18%' }} />
+        <span className="grid-sq"      style={{ top: '55%', left: '6%' }} />
+        <span className="grid-sq alert" style={{ top: '20%', right: '14%' }} />
+        <span className="grid-sq"      style={{ bottom: '22%', right: '20%' }} />
       </div>
-      <span className="float-mark"   style={{ top: '14%', left: '8%' }} aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#cc0000" strokeWidth="2"><path d="M2 11h18M11 2v18"/></svg>
-      </span>
-      <span className="float-mark b" style={{ top: '22%', right: '10%' }} aria-hidden="true">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="14" height="14"/></svg>
-      </span>
-      <span className="float-mark c" style={{ bottom: '18%', left: '12%' }} aria-hidden="true">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#cc0000" strokeWidth="2"><circle cx="7" cy="7" r="5"/></svg>
-      </span>
-      <span className="float-mark"   style={{ bottom: '24%', right: '8%' }} aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 10l4-4 4 4 4-4 4 4"/></svg>
-      </span>
-
-      <div className="max-w-[900px] mx-auto px-6 pt-20 md:pt-32 pb-20 md:pb-28 text-center relative z-10">
+      <div className="max-w-[900px] mx-auto px-6 pt-20 md:pt-32 pb-8 md:pb-12 text-center relative z-10">
         <div className="heroAnim flex flex-col items-center">
           <RedLabel className="mb-8"><span className="redLabel">SISTEM PELAPORAN KEJAHATAN TERPADU</span></RedLabel>
-          <h1 className="heroTitle font-bold leading-[0.95] tracking-[-0.02em] text-[64px] md:text-[104px]">
+          <h1 className="heroTitle uppercase leading-none tracking-[0.01em] text-[72px] md:text-[116px]"
+              style={{ fontFamily: 'var(--font-display), sans-serif' }}>
             <span className="word delay-1">Laporkan.</span><br />
-            <span className="word delay-2 text-alert">Kami&nbsp;Tindak.</span>
+            <TypewriterLoop
+              phrases={['Kami Tindak.', 'Kami Catat.', 'Kami Proses.', 'Kami Lindungi.']}
+              delay={400}
+              className="text-alert"
+            />
           </h1>
-          <p className="mt-8 text-gray-600 text-[17px] md:text-[18px] leading-[1.55] max-w-[620px] mx-auto">
+          <p className="mt-8 text-gray-600 text-[17px] md:text-[18px] leading-[1.55] max-w-[560px] mx-auto">
             Platform pelaporan kejahatan resmi yang terhubung langsung dengan aparat berwenang.
             Setiap laporan dianalisis dan diprioritaskan secara otomatis.
           </p>
@@ -173,19 +208,43 @@ function Hero({ onReport, onTrack }: { onReport: () => void; onTrack: () => void
             <span className="inline-block w-[6px] h-[6px] bg-gray-400" />
             Laporan bersifat rahasia. Identitas pelapor dilindungi.
           </div>
-          <div className="mt-16 grid grid-cols-3 gap-0 border-y border-gray-200 w-full max-w-[680px]">
-            {[['ISO 27001','Keamanan data'],['UU PDP','Patuh regulasi'],['24/7','Operasional']].map(([k,v]) => (
-              <div key={k} className="trustCell py-5 px-2 border-r last:border-r-0 border-gray-200">
-                <div className="font-bold text-[14px] tracking-[0.08em]">{k}</div>
-                <div className="mono text-[10px] uppercase tracking-[0.14em] text-gray-500 mt-1">{v}</div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-12 inline-flex items-center gap-4 border border-gray-200 r4 px-6 py-3 emergency-chip">
+          <div className="mt-12 inline-flex items-center gap-4 border border-gray-200 bg-white r4 px-6 py-3">
             <span className="mono text-[10px] uppercase tracking-[0.18em] text-gray-500 font-bold">DARURAT</span>
             <span className="font-bold text-[22px] text-alert leading-none">110</span>
             <span className="text-[12px] text-gray-600 hidden sm:inline">Untuk situasi mengancam nyawa</span>
           </div>
+        </div>
+
+      </div>
+    </section>
+  )
+}
+
+/* ============================================================
+   STATS BAR
+   ============================================================ */
+function StatsBar() {
+  const stats = [
+    { value: '2.413',    label: 'Kasus Teranalisis',      sub: 'Dataset training AI' },
+    { value: '< 60 dtk', label: 'Klasifikasi Otomatis',   sub: 'Setiap laporan masuk' },
+    { value: '91%',      label: 'Akurasi Model',           sub: 'R² pada data uji' },
+    { value: '24/7',     label: 'Operasional',             sub: 'Tanpa henti' },
+  ]
+  return (
+    <section className="bg-white border-y border-gray-200">
+      <div className="max-w-[1240px] mx-auto px-6">
+        <div className="grid grid-cols-2 md:grid-cols-4">
+          {stats.map((s, i) => (
+            <div key={s.label}
+              className={`py-10 px-6 flex flex-col gap-1 ${i < stats.length - 1 ? 'border-r border-gray-200' : ''}`}>
+              <div className="font-bold text-[36px] md:text-[44px] leading-none tracking-[-0.02em]"
+                   style={{ fontFamily: 'var(--font-display), sans-serif' }}>
+                {s.value}
+              </div>
+              <div className="font-bold text-[14px] mt-2">{s.label}</div>
+              <div className="mono text-[10px] uppercase tracking-[0.14em] text-gray-500">{s.sub}</div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -730,6 +789,7 @@ export default function Page() {
     <div className="bg-white">
       <Navbar   onCTA={goToLaporan} />
       <Hero     onReport={goToLaporan} onTrack={goToTracker} />
+      <StatsBar />
       <HowItWorks />
       <UrgencySystem />
       <Tracker />

@@ -2,8 +2,16 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { ThemeToggle } from '../../components/ThemeToggle'
 import './dashboard.css'
+import type { MarkerData } from './LeafletMap'
+
+const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false, loading: () => (
+  <div style={{ width: '100%', height: '100%', background: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.16em', color: '#555', textTransform: 'uppercase' }}>Memuat peta...</span>
+  </div>
+) })
 
 /* ============================================================
    TYPES
@@ -202,6 +210,58 @@ const PROVINCE_KEYWORDS: Record<string, string[]> = {
   maluku:  ['maluku', 'ambon', 'ternate'],
   papua:   ['papua', 'jayapura', 'timika', 'manokwari', 'sorong'],
   ntt:     ['ntt', 'kupang', 'nusa tenggara timur', 'ende', 'flores', 'labuan bajo'],
+}
+
+const CITY_COORDS_MAIN: [string, number, number][] = [
+  ['jakarta pusat',-6.1862,106.8338],['jakarta barat',-6.1682,106.7637],
+  ['jakarta timur',-6.2250,106.9004],['jakarta selatan',-6.2615,106.8106],
+  ['jakarta utara',-6.1380,106.8608],['jakarta',-6.2088,106.8456],
+  ['tangerang selatan',-6.2897,106.7106],['tangerang',-6.1781,106.6299],
+  ['bekasi',-6.2383,106.9756],['depok',-6.4025,106.7942],
+  ['bogor',-6.5971,106.8060],['bandung',-6.9175,107.6191],
+  ['cimahi',-6.8722,107.5400],['cirebon',-6.7320,108.5523],
+  ['karawang',-6.3213,107.3376],['sukabumi',-6.9277,106.9297],
+  ['tasikmalaya',-7.3274,108.2208],['cianjur',-6.8217,107.1419],
+  ['serang',-6.1202,106.1503],['cilegon',-6.0025,106.0532],
+  ['semarang',-6.9932,110.4203],['solo',-7.5755,110.8243],
+  ['surakarta',-7.5755,110.8243],['magelang',-7.4797,110.2177],
+  ['tegal',-6.8694,109.1402],['pekalongan',-6.8889,109.6753],
+  ['kudus',-6.8048,110.8395],['purwokerto',-7.4286,109.2418],
+  ['cilacap',-7.7300,109.0150],
+  ['yogyakarta',-7.7972,110.3688],['jogja',-7.7972,110.3688],
+  ['sleman',-7.7168,110.3569],['bantul',-7.8884,110.3309],
+  ['surabaya',-7.2575,112.7521],['malang',-7.9666,112.6326],
+  ['sidoarjo',-7.4458,112.7181],['gresik',-7.1565,112.6563],
+  ['mojokerto',-7.4753,112.4336],['kediri',-7.8165,112.0115],
+  ['banyuwangi',-8.2192,114.3691],['jember',-8.1724,113.6878],
+  ['pasuruan',-7.6456,112.9066],['probolinggo',-7.7521,113.2154],
+  ['madiun',-7.6298,111.5239],
+  ['denpasar',-8.6705,115.2126],['badung',-8.6478,115.1418],
+  ['gianyar',-8.5350,115.3236],['tabanan',-8.5415,115.1241],
+  ['buleleng',-8.1132,115.0882],['bali',-8.3405,115.0920],
+  ['medan',3.5952,98.6722],['binjai',3.6036,98.4854],
+  ['palembang',-2.9761,104.7754],['padang',-0.9492,100.3543],
+  ['pekanbaru',0.5335,101.4502],['batam',1.1254,104.0057],
+  ['bandar lampung',-5.3971,105.2668],['lampung',-5.4295,105.2610],
+  ['pontianak',-0.0263,109.3425],['samarinda',-0.5022,117.1536],
+  ['balikpapan',-1.2379,116.8529],['bontang',0.1338,117.4735],
+  ['banjarmasin',-3.3194,114.5908],
+  ['makassar',-5.1477,119.4327],['parepare',-4.0135,119.6293],
+  ['palopo',-2.9925,120.1965],['manado',1.4748,124.8421],
+  ['ambon',-3.6954,128.1814],['ternate',0.7786,127.3728],
+  ['jayapura',-2.5337,140.7181],['timika',-4.5303,136.8836],
+  ['manokwari',-0.8615,134.0622],['sorong',-0.8760,131.2550],
+  ['kupang',-10.1772,123.6070],['mataram',-8.5833,116.1167],
+  ['banda aceh',5.5577,95.3222],
+]
+
+function geocodeLokasi(lokasi: string): [number, number] | null {
+  if (!lokasi || lokasi === '-') return null
+  const loc = lokasi.toLowerCase()
+  for (const [name, lat, lng] of CITY_COORDS_MAIN) {
+    if (loc.includes(name)) return [lat, lng]
+  }
+  return null
 }
 
 function matchProvinceId(lokasi: string): string | null {
@@ -535,87 +595,44 @@ function KPI({ stats, isLoaded }: { stats: Stats; isLoaded: boolean }) {
   )
 }
 
-/* ============================================================
-   MAP
-   ============================================================ */
-function CrimeMap({ provinces }: { provinces: Province[] }) {
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const [tip, setTip] = useState<{ p: Province; x: number; y: number } | null>(null)
-
-  const onEnter = (p: Province, e: React.MouseEvent) => {
-    if (!wrapRef.current) return
-    const rect = wrapRef.current.getBoundingClientRect()
-    setTip({ p, x: e.clientX - rect.left + 14, y: e.clientY - rect.top + 14 })
-  }
-
-  return (
-    <div className="map-area" ref={wrapRef}>
-      <svg viewBox="0 0 1000 380" className="map-svg" preserveAspectRatio="xMidYMid meet">
-        <g>
-          <line className="ocean-line" x1="0" y1="80"  x2="1000" y2="80"  />
-          <line className="ocean-line" x1="0" y1="200" x2="1000" y2="200" />
-          <line className="ocean-line" x1="0" y1="320" x2="1000" y2="320" />
-          <line className="ocean-line" x1="200" y1="0" x2="200" y2="380"  />
-          <line className="ocean-line" x1="500" y1="0" x2="500" y2="380"  />
-          <line className="ocean-line" x1="800" y1="0" x2="800" y2="380"  />
-        </g>
-        {MAP_CONTEXT.map(c => <polygon key={c.id} className="prov-bg" points={c.points} />)}
-        {MAP_DOTS.map((d, i)    => <circle key={i} className="dot" cx={d.cx} cy={d.cy} r={d.r} />)}
-        {provinces.map(p => (
-          <g key={p.id} onMouseEnter={e => onEnter(p, e)} onMouseMove={e => onEnter(p, e)} onMouseLeave={() => setTip(null)}>
-            <polygon className="prov" points={p.points} fill={LVL_COLOR[p.lvl]} />
-            <text x={p.label.x} y={p.label.y} textAnchor="middle" className={`prov-label ${LVL_TEXT_LIGHT[p.lvl] ? 'light' : ''}`}>
-              {p.nm.toUpperCase()}
-            </text>
-          </g>
-        ))}
-        <g transform="translate(950, 30)">
-          <circle cx="0" cy="0" r="14" fill="#fff" stroke="#d1d5db" strokeWidth="1" />
-          <path d="M 0 -10 L 3 0 L 0 10 L -3 0 Z" fill="#0a0a0a" />
-          <text x="0" y="-18" textAnchor="middle" className="compass">U</text>
-        </g>
-        <g transform="translate(40, 350)">
-          <line className="scale-bar" x1="0" y1="0" x2="80" y2="0" />
-          <line className="scale-bar" x1="0" y1="-3" x2="0"  y2="3"  />
-          <line className="scale-bar" x1="80" y1="-3" x2="80" y2="3" />
-          <text x="40" y="14" textAnchor="middle" className="scale-label">~ 1.000 KM</text>
-        </g>
-      </svg>
-      {tip && (
-        <div className="map-tooltip show" style={{ left: tip.x, top: tip.y }}>
-          <div className="nm">{tip.p.nm}</div>
-          <div className="total">{tip.p.total} TOTAL KASUS</div>
-          <div className="bk">
-            <span className="hi">● {tip.p.hi} Tinggi</span>
-            <span className="md">● {tip.p.md} Sedang</span>
-            <span className="lo">● {tip.p.lo} Rendah</span>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 function MapPanel({ reports }: { reports: Report[] }) {
+  const markers = useMemo((): MarkerData[] =>
+    reports.flatMap(r => {
+      const coords = geocodeLokasi(r.loc)
+      if (!coords) return []
+      const [lat, lng] = coords
+      // Jitter kecil agar marker tidak tumpang tindih di titik yang sama
+      const jLat = lat + (Math.random() - 0.5) * 0.08
+      const jLng = lng + (Math.random() - 0.5) * 0.08
+      return [{ id: r.id, urg: r.urg, loc: r.loc, kron: r.kron, lat: jLat, lng: jLng }]
+    })
+  , [reports])
+
+  const mapStats = useMemo(() => ({
+    total: reports.length,
+    hi:    reports.filter(r => r.urg === 'hi').length,
+    md:    reports.filter(r => r.urg === 'md').length,
+    lo:    reports.filter(r => r.urg === 'lo').length,
+  }), [reports])
+
   const provinces = useMemo(() => computeProvinces(reports), [reports])
   const sorted = [...provinces].sort((a, b) => b.total - a.total)
   const top5   = sorted.slice(0, 5).filter(p => p.total > 0)
   const max    = top5[0]?.total || 1
+
   return (
     <div className="map-panel">
       <div className="map-card">
         <div className="hd">
           <div>
             <div className="t">PETA SEBARAN KEJAHATAN</div>
-            <div className="s">PER PROVINSI · DATA REAL-TIME</div>
-          </div>
-          <div className="legend">
-            {[['hi','Tinggi'],['lh','Cukup Tinggi'],['md','Sedang'],['ly','Rendah'],['lg','Minim Data']].map(([cls,lbl]) => (
-              <span key={cls} className="item"><span className={`sw ${cls}`} />{lbl}</span>
-            ))}
+            <div className="s">PER LOKASI · DATA REAL-TIME</div>
           </div>
         </div>
-        <CrimeMap provinces={provinces} />
+        <div style={{ height: 420, position: 'relative', borderRadius: 4, overflow: 'hidden' }}>
+          <LeafletMap markers={markers} stats={mapStats} />
+        </div>
       </div>
       <div className="rank-card">
         <div className="hd">
@@ -645,50 +662,7 @@ function MapPanel({ reports }: { reports: Report[] }) {
   )
 }
 
-/* ============================================================
-   FEED
-   ============================================================ */
-function FeedPanel({ onOpen, reports }: { onOpen: (r: Report) => void; reports: Report[] }) {
-  const items = reports.slice(0, 6)
-  return (
-    <div className="card feed-card">
-      <div className="card-hd">
-        <div className="card-hd-l">
-          <span className="live-dot red" />
-          <div>
-            <div className="t">LAPORAN TERBARU</div>
-            <div className="s">UMPAN LANGSUNG</div>
-          </div>
-        </div>
-        <button className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--g500)', fontWeight: 700 }}>
-          LIHAT SEMUA →
-        </button>
-      </div>
-      <div className="feed">
-        {items.length === 0 && (
-          <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--g500)', fontSize: 13 }}>
-            Belum ada laporan masuk.
-          </div>
-        )}
-        {items.map(r => (
-          <div key={r.id} className="feed-row" onClick={() => onOpen(r)}>
-            <div className="a">
-              <span className="id">{r.id}</span>
-              <Badge urg={r.urg} />
-            </div>
-            <div className="b">{r.kron}</div>
-            <div className="c">
-              <span>{r.loc}</span><span>·</span>
-              <span>{r.time}</span><span>·</span>
-              <span>{r.conf}% CONF.</span>
-            </div>
-            <div className="confbar"><i style={{ width: r.conf + '%', background: confColor(r.urg) }} /></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
+
 
 /* ============================================================
    TABLE
@@ -1157,9 +1131,8 @@ export default function DashboardPage() {
           <>
             <KPI stats={{ ...stats, selesaiHariIni: totalSelesai }} isLoaded={isLoaded} />
             <MapPanel reports={reports} />
-            <div className="tbl-feed-grid">
+            <div className="tbl-feed-grid" style={{ gridTemplateColumns: '1fr' }}>
               <ReportsTable onOpen={setSelected} statuses={statuses} reports={reports} total={stats.total} />
-              <FeedPanel onOpen={setSelected} reports={reports} />
             </div>
           </>
         )}

@@ -9,7 +9,6 @@ import { ThemeToggle } from '../components/ThemeToggle'
    ============================================================ */
 interface FormData {
   // Step 1 — Identitas
-  mode: 'identitas' | 'anonim'
   nama: string
   noHp: string
   email: string
@@ -158,10 +157,8 @@ function Step1({
 
   const validate = () => {
     const e: Record<string, string> = {}
-    if (data.mode === 'identitas') {
-      if (!data.nama.trim())  e.nama  = 'Nama wajib diisi'
-      if (!data.noHp.trim())  e.noHp  = 'Nomor HP wajib diisi'
-    }
+    if (!data.nama.trim())  e.nama  = 'Nama wajib diisi'
+    if (!data.noHp.trim())  e.noHp  = 'Nomor HP wajib diisi'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -174,72 +171,44 @@ function Step1({
         <div className="text-alert text-[12px] font-bold tracking-[0.18em] uppercase mb-3">
           IDENTITAS PELAPOR
         </div>
-        <h2 className="font-bold text-[32px] md:text-[40px] leading-[1.05] tracking-[-0.02em]">
+        <h2 className="font-bold text-[32px] md:text-[40px] leading-[1.0] tracking-[0]" style={{ fontFamily: 'var(--font-display), sans-serif' }}>
           Siapa yang melaporkan?
         </h2>
         <p className="mt-3 text-gray-500 text-[15px] leading-relaxed">
-          Anda dapat melapor secara anonim. Identitas Anda dilindungi dan hanya dapat diakses petugas berwenang.
+          Identitas Anda dilindungi dan hanya dapat diakses oleh petugas berwenang.
         </p>
       </div>
 
-      {/* Mode toggle */}
-      <div className="mb-8 grid grid-cols-2 border border-gray-200 r4 overflow-hidden">
-        {(['identitas', 'anonim'] as const).map(mode => (
-          <button
-            key={mode}
-            type="button"
-            onClick={() => setData({ mode })}
-            className={`py-4 text-[13px] font-bold tracking-[0.06em] uppercase transition-all duration-200
-              ${data.mode === mode ? 'bg-ink text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}
-          >
-            {mode === 'identitas' ? '🔐 Dengan Identitas' : '👤 Anonim'}
-          </button>
-        ))}
+      <div className="space-y-5">
+        <div>
+          <FieldLabel required>Nama Lengkap</FieldLabel>
+          <Input
+            value={data.nama}
+            onChange={v => setData({ nama: v })}
+            placeholder="Masukkan nama lengkap Anda"
+          />
+          <ValidationMsg msg={errors.nama} />
+        </div>
+        <div>
+          <FieldLabel required>Nomor HP / WhatsApp</FieldLabel>
+          <Input
+            type="tel"
+            value={data.noHp}
+            onChange={v => setData({ noHp: v })}
+            placeholder="08xx-xxxx-xxxx"
+          />
+          <ValidationMsg msg={errors.noHp} />
+        </div>
+        <div>
+          <FieldLabel>Email <span className="normal-case font-normal text-gray-400">(opsional)</span></FieldLabel>
+          <Input
+            type="email"
+            value={data.email}
+            onChange={v => setData({ email: v })}
+            placeholder="nama@email.com"
+          />
+        </div>
       </div>
-
-      {data.mode === 'anonim' && (
-        <div className="mb-8 border border-gray-200 r4 px-5 py-4 bg-gray-50">
-          <p className="mono text-[11px] uppercase tracking-[0.16em] text-gray-500">
-            MODE ANONIM AKTIF
-          </p>
-          <p className="mt-2 text-[14px] text-gray-600 leading-relaxed">
-            Laporan Anda akan diproses tanpa menyimpan identitas pribadi. Nomor tiket tetap diberikan untuk pelacakan.
-          </p>
-        </div>
-      )}
-
-      {data.mode === 'identitas' && (
-        <div className="space-y-5">
-          <div>
-            <FieldLabel required>Nama Lengkap</FieldLabel>
-            <Input
-              value={data.nama}
-              onChange={v => setData({ nama: v })}
-              placeholder="Masukkan nama lengkap Anda"
-            />
-            <ValidationMsg msg={errors.nama} />
-          </div>
-          <div>
-            <FieldLabel required>Nomor HP / WhatsApp</FieldLabel>
-            <Input
-              type="tel"
-              value={data.noHp}
-              onChange={v => setData({ noHp: v })}
-              placeholder="08xx-xxxx-xxxx"
-            />
-            <ValidationMsg msg={errors.noHp} />
-          </div>
-          <div>
-            <FieldLabel>Email <span className="normal-case font-normal text-gray-400">(opsional)</span></FieldLabel>
-            <Input
-              type="email"
-              value={data.email}
-              onChange={v => setData({ email: v })}
-              placeholder="nama@email.com"
-            />
-          </div>
-        </div>
-      )}
 
       <div className="mt-10 flex justify-end">
         <button
@@ -290,7 +259,7 @@ function Step2({
         <div className="text-alert text-[12px] font-bold tracking-[0.18em] uppercase mb-3">
           DETAIL KEJADIAN
         </div>
-        <h2 className="font-bold text-[32px] md:text-[40px] leading-[1.05] tracking-[-0.02em]">
+        <h2 className="font-bold text-[32px] md:text-[40px] leading-[1.0] tracking-[0]" style={{ fontFamily: 'var(--font-display), sans-serif' }}>
           Apa yang terjadi?
         </h2>
         <p className="mt-3 text-gray-500 text-[15px] leading-relaxed">
@@ -421,7 +390,7 @@ function Step3({
         <div className="text-alert text-[12px] font-bold tracking-[0.18em] uppercase mb-3">
           BUKTI &amp; KONFIRMASI
         </div>
-        <h2 className="font-bold text-[32px] md:text-[40px] leading-[1.05] tracking-[-0.02em]">
+        <h2 className="font-bold text-[32px] md:text-[40px] leading-[1.0] tracking-[0]" style={{ fontFamily: 'var(--font-display), sans-serif' }}>
           Lampirkan bukti
         </h2>
         <p className="mt-3 text-gray-500 text-[15px] leading-relaxed">
@@ -496,7 +465,7 @@ function Step3({
         </div>
         <div className="divide-y divide-gray-100">
           {[
-            ['Pelapor',   data.mode === 'anonim' ? 'Anonim'   : data.nama || '—'],
+            ['Pelapor',   data.nama || '—'],
             ['Lokasi',    data.lokasi   || '—'],
             ['Waktu',     [data.tanggal, data.waktu].filter(Boolean).join(' · ') || '—'],
             ['Bukti',     `${previews.length} file dilampirkan`],
@@ -589,8 +558,9 @@ function SuccessState({ ticketId, urgensi }: { ticketId: string; urgensi: string
       <div className="text-alert text-[12px] font-bold tracking-[0.18em] uppercase mb-4">
         LAPORAN DITERIMA
       </div>
-      <h2 className="font-bold text-[36px] md:text-[48px] leading-[1.05] tracking-[-0.02em]">
-        Laporan berhasil dikirim
+      <h2 className="font-bold text-[36px] md:text-[48px] leading-[1.0] tracking-[0] uppercase"
+          style={{ fontFamily: 'var(--font-display), sans-serif' }}>
+        Laporan Berhasil Dikirim
       </h2>
       <p className="mt-4 text-gray-500 text-[16px] leading-relaxed max-w-[480px] mx-auto">
         Laporan Anda sedang dianalisis oleh sistem AI dan akan segera diteruskan ke unit kepolisian yang tepat.
@@ -686,7 +656,6 @@ function SuccessState({ ticketId, urgensi }: { ticketId: string; urgensi: string
    PAGE — default export
    ============================================================ */
 const INITIAL_DATA: FormData = {
-  mode:      'identitas',
   nama:      '',
   noHp:      '',
   email:     '',
@@ -715,9 +684,8 @@ export default function LaporanPage() {
       judul:          formData.judul,
       deskripsi:      formData.deskripsi,
       lokasi:         formData.lokasi,
-      nama_pelapor:   formData.mode === 'identitas' ? formData.nama  : null,
-      kontak_pelapor: formData.mode === 'identitas' ? formData.noHp  : null,
-      is_anonim:      formData.mode === 'anonim',
+      nama_pelapor:   formData.nama,
+      kontak_pelapor: formData.noHp,
     }
 
     try {
@@ -759,7 +727,7 @@ export default function LaporanPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       {/* ── Navbar ── */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
         <div className="max-w-[1240px] mx-auto px-6 h-[64px] flex items-center justify-between">
@@ -787,34 +755,38 @@ export default function LaporanPage() {
         {step < 3 ? (
           <>
             {/* Step Indicator */}
-            <div className="mb-12 border border-gray-200 r4 overflow-hidden">
+            <div className="mb-8 border border-gray-200 r4 overflow-hidden">
               <StepIndicator current={step} />
             </div>
 
-            {/* Step Content */}
-            {step === 0 && (
-              <Step1 data={formData} setData={update} onNext={() => setStep(1)} />
-            )}
-            {step === 1 && (
-              <Step2
-                data={formData}
-                setData={update}
-                onNext={() => setStep(2)}
-                onBack={() => setStep(0)}
-              />
-            )}
-            {step === 2 && (
-              <Step3
-                data={formData}
-                setData={update}
-                onSubmit={handleSubmit}
-                onBack={() => setStep(1)}
-                submitting={submitting}
-              />
-            )}
+            {/* Step Content in white card */}
+            <div className="bg-white border border-gray-200 r4 px-8 py-10">
+              {step === 0 && (
+                <Step1 data={formData} setData={update} onNext={() => setStep(1)} />
+              )}
+              {step === 1 && (
+                <Step2
+                  data={formData}
+                  setData={update}
+                  onNext={() => setStep(2)}
+                  onBack={() => setStep(0)}
+                />
+              )}
+              {step === 2 && (
+                <Step3
+                  data={formData}
+                  setData={update}
+                  onSubmit={handleSubmit}
+                  onBack={() => setStep(1)}
+                  submitting={submitting}
+                />
+              )}
+            </div>
           </>
         ) : (
-          <SuccessState ticketId={ticketId} urgensi={urgensi} />
+          <div className="bg-white border border-gray-200 r4 px-8 py-10">
+            <SuccessState ticketId={ticketId} urgensi={urgensi} />
+          </div>
         )}
       </main>
 

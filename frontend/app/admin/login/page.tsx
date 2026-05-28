@@ -50,7 +50,8 @@ export default function LoginPage() {
       {/* ── Logo ── */}
       <div className="login-logo">
         <div className="login-logo-row">
-          <div className="login-logo-box" aria-label="Logo SIPEDULI" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Logo SIPEDULI" width={32} height={32} style={{ objectFit: 'contain', borderRadius: '4px', flexShrink: 0 }} />
           <span className="login-logo-name">SIPEDULI</span>
         </div>
         <div className="login-logo-sub">Sistem Pelaporan Kejahatan Terpadu</div>
