@@ -568,6 +568,14 @@ const URGENSI_ESTIMASI: Record<string, string> = {
 
 function SuccessState({ ticketId, urgensi }: { ticketId: string; urgensi: string }) {
   const style = URGENSI_STYLE[urgensi] ?? URGENSI_STYLE.Sedang
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(ticketId).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   return (
     <div className="text-center py-8 animate-in fade-in zoom-in-95 duration-500">
@@ -599,6 +607,32 @@ function SuccessState({ ticketId, urgensi }: { ticketId: string; urgensi: string
         <p className="mt-2 text-[13px] text-gray-500">
           Simpan nomor ini untuk melacak status laporan
         </p>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className={`mt-4 inline-flex items-center gap-2 r4 px-5 py-2 font-bold text-[12px] tracking-[0.1em] uppercase relative overflow-hidden group hover:-translate-y-0.5 active:translate-y-0 transition-transform duration-200
+            ${copied ? 'bg-green-600 text-white border-2 border-green-600' : 'bg-white text-ink border-2 border-ink'}`}
+        >
+          {!copied && <span className="btn-sw-g absolute inset-0 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-300 ease-out" aria-hidden="true" />}
+          <span className={`relative z-10 inline-flex items-center gap-2 ${!copied ? 'btn-ghost-lbl' : ''}`}>
+            {copied ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M2 7l4 4 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Tersalin!
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <rect x="4" y="1" width="9" height="9" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M1 5v7a1 1 0 001 1h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                Salin Nomor
+              </>
+            )}
+          </span>
+        </button>
       </div>
 
       {/* ML Result badge */}
@@ -631,17 +665,17 @@ function SuccessState({ ticketId, urgensi }: { ticketId: string; urgensi: string
       <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
         <Link
           href={`/?cek=${ticketId}`}
-          className="r4 bg-ink text-white font-bold text-[13px] tracking-[0.08em] uppercase
-                     px-8 py-4 hover:bg-black transition-colors duration-200 inline-flex items-center gap-2"
+          className="r4 bg-ink text-white font-bold text-[13px] tracking-[0.08em] uppercase px-8 py-4 relative overflow-hidden group hover:-translate-y-0.5 active:translate-y-0 inline-flex items-center gap-2"
         >
-          Cek Status Laporan
+          <span className="btn-sw-p absolute inset-0 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-300 ease-out" aria-hidden="true" />
+          <span className="relative z-10">Cek Status Laporan</span>
         </Link>
         <Link
           href="/"
-          className="r4 bg-white text-ink font-bold text-[13px] tracking-[0.08em] uppercase
-                     px-8 py-4 border border-ink hover:bg-gray-50 transition-colors duration-200"
+          className="r4 bg-white text-ink font-bold text-[13px] tracking-[0.08em] uppercase px-8 py-4 border border-ink relative overflow-hidden group hover:-translate-y-0.5 active:translate-y-0 inline-flex items-center"
         >
-          Kembali ke Beranda
+          <span className="btn-sw-g absolute inset-0 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-300 ease-out" aria-hidden="true" />
+          <span className="relative z-10 btn-ghost-lbl">Kembali ke Beranda</span>
         </Link>
       </div>
     </div>

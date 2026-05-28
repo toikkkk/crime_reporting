@@ -9,7 +9,6 @@ import { ThemeToggle } from './components/ThemeToggle'
    TYPES
    ============================================================ */
 interface RevealOptions { threshold?: number; rootMargin?: string }
-interface CountUpOptions { duration?: number; decimals?: number; suffix?: string; prefix?: string }
 type BadgeKind = 'tinggi' | 'sedang' | 'rendah'
 interface StatusEntry { stage: number; kind: BadgeKind; cat: string; loc: string; updated: string; officer: string }
 
@@ -83,21 +82,19 @@ function RedLabel({ children, className = '' }: { children: React.ReactNode; cla
 }
 
 function MagneticButton({ children, onClick, variant = 'primary', className = '' }: { children: React.ReactNode; onClick?: () => void; variant?: 'primary' | 'ghost'; className?: string }) {
-  const ref = useRef<HTMLButtonElement>(null)
-  const [pos, setPos] = useState({ x: 0, y: 0 })
-  const onMove = (e: React.MouseEvent) => {
-    if (!ref.current) return
-    const r = ref.current.getBoundingClientRect()
-    setPos({ x: (e.clientX - r.left - r.width / 2) * 0.18, y: (e.clientY - r.top - r.height / 2) * 0.22 })
+  const base = 'r4 inline-flex items-center justify-center font-bold text-[14px] tracking-[0.04em] uppercase px-7 py-4 relative overflow-hidden group hover:-translate-y-0.5 active:translate-y-0'
+  if (variant === 'ghost') {
+    return (
+      <button onClick={onClick} className={`${base} bg-white text-ink border border-ink ${className}`}>
+        <span className="btn-sw-g absolute inset-0 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-300 ease-out" aria-hidden="true" />
+        <span className="relative z-10 btn-ghost-lbl">{children}</span>
+      </button>
+    )
   }
-  const base    = 'r4 inline-flex items-center justify-center font-bold text-[14px] tracking-[0.04em] uppercase px-7 py-4 relative overflow-hidden'
-  const varCls  = variant === 'primary' ? 'bg-ink text-white' : 'bg-white text-ink border border-ink'
   return (
-    <button ref={ref} onClick={onClick} onMouseMove={onMove} onMouseLeave={() => setPos({ x: 0, y: 0 })}
-      className={`${base} ${varCls} magBtn ${className}`}
-      style={{ transform: `translate(${pos.x}px,${pos.y}px)`, transition: 'transform .45s cubic-bezier(.2,.7,.2,1),background-color .2s ease' }}>
-      <span className="sweep" aria-hidden="true" />
-      <span style={{ position: 'relative', zIndex: 1 }}>{children}</span>
+    <button onClick={onClick} className={`${base} bg-ink text-white ${className}`}>
+      <span className="btn-sw-p absolute inset-0 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-300 ease-out" aria-hidden="true" />
+      <span className="relative z-10">{children}</span>
     </button>
   )
 }
@@ -119,8 +116,9 @@ function Navbar({ onCTA }: { onCTA: () => void }) {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <button onClick={onCTA}
-            className="r4 hidden sm:inline-flex items-center justify-center bg-ink text-white font-bold text-[14px] tracking-[0.04em] uppercase px-5 py-3 hover:bg-black btnPress">
-            Laporkan Sekarang
+            className="r4 hidden sm:inline-flex items-center justify-center bg-ink text-white font-bold text-[14px] tracking-[0.04em] uppercase px-5 py-3 relative overflow-hidden group hover:-translate-y-0.5 active:translate-y-0 btnPress">
+            <span className="btn-sw-p absolute inset-0 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-300 ease-out" aria-hidden="true" />
+            <span className="relative z-10">Laporkan Sekarang</span>
           </button>
         </div>
       </div>
@@ -365,7 +363,7 @@ function Tracker() {
     { label: 'Selesai',      meta: 'Berkas ditutup'       },
   ]
   const [hdrRef, hdrShown] = useReveal()
-  const [tlRef,  tlShown]  = useReveal({ threshold: 0.25 })
+  useReveal({ threshold: 0.25 })
 
   // Load 3 most-recent ticket IDs as examples
   useEffect(() => {
@@ -402,7 +400,7 @@ function Tracker() {
     }
   }
 
-  const submit = (e: React.FormEvent) => { e.preventDefault(); lookup(q) }
+  const submit = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); lookup(q) }
 
   return (
     <section id="cek-status" className="bg-white">
@@ -435,9 +433,9 @@ function Tracker() {
           <div className="mt-10 border border-gray-200 r4 bg-white overflow-hidden">
 
             {/* ── Status banner ── */}
-            <div className="bg-ink text-white px-6 py-4 flex flex-wrap items-center gap-3">
-              <span className="mono text-[10px] uppercase tracking-[0.18em] text-black/50 shrink-0">STATUS SAAT INI</span>
-              <span className={`mono text-[11px] font-bold px-3 py-1 r4 uppercase ${
+            <div className="bg-ink keep-ink px-6 py-4 flex flex-wrap items-center gap-3">
+              <span className="mono text-[10px] uppercase tracking-[0.18em] text-white/50 shrink-0">STATUS SAAT INI</span>
+              <span className={`mono text-[11px] font-bold px-3 py-1 r4 uppercase text-white ${
                 result.stage === 3 ? 'bg-green-600' : 'bg-alert'
               }`}>
                 {steps[result.stage]?.label}
@@ -726,7 +724,7 @@ function Footer() {
    ============================================================ */
 export default function Page() {
   const router = useRouter()
-  const goToLaporan = () => router.push('/laporan')  // SINKRON ke form input user
+  const goToLaporan = () => router.push('/laporan')
   const goToTracker = () => smoothScrollTo('cek-status')
   return (
     <div className="bg-white">

@@ -221,6 +221,13 @@ button, a { transition: background-color .2s ease, color .2s ease, border-color 
 .magBtn .sweep { position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%); transform: translateX(-110%); transition: transform .65s cubic-bezier(.2,.7,.2,1); pointer-events: none; }
 .magBtn:hover .sweep { transform: translateX(110%); }
 
+/* ── Button sweep: mode-aware ── */
+.btn-sw-p { position: absolute; inset: 0; background: rgba(255,255,255,0.18); pointer-events: none; }
+.dark .btn-sw-p { background: rgba(0,0,0,0.12); }
+.btn-sw-g { position: absolute; inset: 0; background: #cc0000; pointer-events: none; }
+.btn-ghost-lbl { transition: color .15s ease; }
+.group:hover .btn-ghost-lbl { color: #ffffff !important; }
+
 /* Login page animation */
 @keyframes loginSlideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 .login-card { animation: loginSlideUp 0.5s cubic-bezier(.2,.7,.2,1) both; }
