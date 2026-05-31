@@ -187,11 +187,11 @@ function Hero({ onReport, onTrack }: { onReport: () => void; onTrack: () => void
       <div className="max-w-[900px] mx-auto px-6 pt-20 md:pt-32 pb-8 md:pb-12 text-center relative z-10">
         <div className="heroAnim flex flex-col items-center">
           <RedLabel className="mb-8"><span className="redLabel">SISTEM PELAPORAN KEJAHATAN TERPADU</span></RedLabel>
-          <h1 className="heroTitle uppercase leading-none tracking-[0.01em] text-[72px] md:text-[116px]"
+          <h1 className="heroTitle uppercase leading-none tracking-[0.01em] text-[60px] md:text-[100px]"
               style={{ fontFamily: 'var(--font-display), sans-serif' }}>
-            <span className="word delay-1">Laporkan.</span><br />
+            <span className="word delay-1">Laporkan</span><br />
             <TypewriterLoop
-              phrases={['Kami Tindak.', 'Kami Catat.', 'Kami Proses.', 'Kami Lindungi.']}
+              phrases={['Kami Tindak', 'Kami Catat', 'Kami Proses', 'Kami Lindungi']}
               delay={400}
               className="text-alert"
             />

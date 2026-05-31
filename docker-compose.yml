@@ -16,7 +16,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crime_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crime_user} -d ${POSTGRES_DB:-crime_reporting}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -70,7 +70,7 @@ services:
 
   # ─── Next.js Frontend ────────────────────────────────────────────
   frontend:
-    image: faruqqq/crime-frontend:latest #sipeduli/frontend:latest
+    image: faruqqq/crime-frontend:latest
     #build:
       #context: ./frontend
       #dockerfile: Dockerfile
