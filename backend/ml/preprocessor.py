@@ -66,6 +66,14 @@ ACTIVE_SIGNALS = [
     'tolong segera datang', 'tolong segera ke sini', 'tolong segera bantu',
     'butuh bantuan segera', 'segera datang', 'sebelum ada korban',
     'darurat', 'ada yang terluka', 'ada korban',
+    # korban luka
+    'luka parah', 'luka berat', 'luka serius', 'ada yang luka',
+    'ada siswa luka', 'ada warga luka', 'ada korban luka',
+    'tidak sadarkan diri', 'pingsan', 'kritis',
+    # sinyal minta bantuan aktif
+    'mohon segera', 'segera kirim', 'segera bantu', 'segera ke sini',
+    'tolong kirim', 'kirim bantuan', 'minta bantuan segera',
+    'tolong cepat', 'cepat ke sini', 'kondisi darurat',
 ]
 
 PUBLIC_RISK_SIGNALS = [
