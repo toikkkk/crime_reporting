@@ -62,18 +62,26 @@ SAFE_CONTEXT = {
 }
 
 ACTIVE_SIGNALS = [
+    # situasi sedang berlangsung
     'sedang berlangsung', 'masih berlangsung', 'sedang terjadi',
+    'masih di dalam', 'masih di sini', 'pelaku masih', 'masih ada di',
+    'mereka masih', 'masih berlangsung', 'saat ini masih',
+    # minta bantuan segera
     'tolong segera datang', 'tolong segera ke sini', 'tolong segera bantu',
-    'butuh bantuan segera', 'segera datang', 'sebelum ada korban',
-    'darurat', 'ada yang terluka', 'ada korban',
-    # korban luka
-    'luka parah', 'luka berat', 'luka serius', 'ada yang luka',
+    'tolong segera', 'butuh bantuan segera', 'segera datang',
+    'segera ke sini', 'segera kirim', 'segera bantu',
+    'mohon segera', 'tolong kirim', 'kirim bantuan',
+    'minta bantuan segera', 'tolong cepat', 'cepat ke sini',
+    'sebelum ada korban', 'darurat', 'kondisi darurat',
+    # ada korban / korban luka
+    'ada korban', 'ada yang terluka', 'ada yang luka',
     'ada siswa luka', 'ada warga luka', 'ada korban luka',
-    'tidak sadarkan diri', 'pingsan', 'kritis',
-    # sinyal minta bantuan aktif
-    'mohon segera', 'segera kirim', 'segera bantu', 'segera ke sini',
-    'tolong kirim', 'kirim bantuan', 'minta bantuan segera',
-    'tolong cepat', 'cepat ke sini', 'kondisi darurat',
+    'luka parah', 'luka berat', 'luka serius', 'luka parah',
+    'berdarah', 'sudah berdarah', 'kena sabetan', 'kena tusukan',
+    'tidak sadarkan diri', 'pingsan', 'kritis', 'kondisi kritis',
+    # ancaman aktif
+    'mengancam korban', 'menodongkan', 'mau nusuk', 'mau membunuh',
+    'todong', 'ancam', 'sembunyi',
 ]
 
 PUBLIC_RISK_SIGNALS = [
@@ -110,6 +118,65 @@ _TIPE_WEIGHTS: list[tuple[str, list[str], float]] = [
     ('Kriminalitas Ringan',        ['skor_ringan'],                          1.0),
 ]
 
+# Keyword-based crime type classifier — lebih akurat dari urgency-score saja
+_CRIME_TYPE_KEYWORDS: list[tuple[str, list[str]]] = [
+    ('Pembunuhan / Penganiayaan Berat', [
+        'bunuh', 'mati', 'tewas', 'meninggal', 'jenazah', 'mayat',
+        'pembunuhan', 'dibunuh', 'membunuh', 'korban jiwa',
+    ]),
+    ('Perampokan Bersenjata', [
+        'rampas', 'rampok', 'begal', 'merampas', 'dirampas',
+        'dirampok', 'dibegal', 'todong', 'ditodong', 'pepet',
+        'mengancam korban', 'paksa serahkan',
+    ]),
+    ('Tawuran / Kerusuhan Massa', [
+        'tawuran', 'tawur', 'rusuh', 'kerusuhan', 'bentrok', 'bentrokan',
+        'anarkis', 'amuk', 'massa menyerang', 'kelompok menyerang',
+    ]),
+    ('Penganiayaan / Kekerasan Fisik', [
+        'aniaya', 'penganiayaan', 'pukul', 'hajar', 'tusuk', 'tikam',
+        'sabetan', 'melukai', 'memukul', 'ngamuk', 'menganiaya',
+        'dipukul', 'dihajar', 'ditusuk', 'mau nusuk', 'serangan fisik',
+    ]),
+    ('Kejahatan Senjata Berbahaya', [
+        'bom', 'molotov', 'pistol', 'senapan', 'senjata api', 'tembak',
+        'celurit', 'golok', 'parang', 'linggis', 'bersenjata',
+    ]),
+    ('Pencurian Kendaraan', [
+        'begal motor', 'motor dicuri', 'motor hilang', 'mobil dicuri',
+        'mobil hilang', 'kendaraan dicuri', 'kunci t', 'rampas motor',
+        'sepeda dicuri', 'kehilangan motor', 'kehilangan mobil',
+    ]),
+    ('Pencurian / Pencopetan', [
+        'dicopet', 'dijambret', 'dibobol', 'dijebol', 'maling',
+        'tas dicuri', 'hp dicuri', 'dompet dicuri', 'laptop dicuri',
+        'pencurian', 'mencuri',
+    ]),
+    ('Balap Liar / Gangguan Lalu Lintas', [
+        'balap liar', 'geng motor', 'knalpot brong', 'menutup jalan',
+        'blokade jalan', 'kebut-kebutan', 'arena balap', 'trek liar',
+    ]),
+    ('Penipuan / Kejahatan Siber', [
+        'penipuan', 'ditipu', 'menipu', 'tipu', 'scam', 'rekening',
+        'transfer uang', 'tidak dikirim', 'akun hilang', 'akun palsu',
+        'penjual kabur', 'online shop', 'instagram', 'tokopedia',
+    ]),
+    ('Vandalisme / Perusakan Properti', [
+        'vandal', 'dicoret', 'coret-coret', 'cat semprot', 'graffiti',
+        'dirusak', 'dipatahkan', 'memecahkan', 'kaca pecah',
+        'merusak properti', 'spion dipatahkan',
+    ]),
+    ('Sengketa / Perselisihan Perdata', [
+        'sengketa', 'mediasi', 'batas tanah', 'batas pagar',
+        'perselisihan', 'pagar rumah', 'hak tanah',
+    ]),
+    ('Laporan Kehilangan / Administrasi', [
+        'kehilangan ktp', 'surat kehilangan', 'ktp jatuh', 'ktp hilang',
+        'tidak ada tindak kriminal', 'keperluan administrasi',
+        'buat surat keterangan', 'surat keterangan kehilangan',
+    ]),
+]
+
 
 def _kw_match(kw: str, teks_clean: str, words_set: set) -> bool:
     """Word-exact match untuk keyword 1 kata; substring untuk frasa multi-kata."""
@@ -118,11 +185,26 @@ def _kw_match(kw: str, teks_clean: str, words_set: set) -> bool:
     return kw in words_set
 
 
-def tentukan_tipe_kejahatan(teks_clean: str) -> str:
-    """Klasifikasi tipe kejahatan: pilih kategori dengan weighted urgency score tertinggi."""
+def tentukan_tipe_kejahatan(teks_clean: str, teks_original: str = '') -> str:
+    """Klasifikasi tipe kejahatan: keyword-based (prioritas) + fallback urgency score."""
+    teks_lower   = teks_original.lower() if teks_original else ''
+    teks_combined = teks_lower + ' ' + teks_clean
+
+    best_tipe  = None
+    best_count = 0
+    for tipe, keywords in _CRIME_TYPE_KEYWORDS:
+        count = sum(1 for kw in keywords if kw in teks_combined)
+        if count > best_count:
+            best_count = count
+            best_tipe  = tipe
+
+    if best_tipe and best_count > 0:
+        return best_tipe
+
+    # Fallback: urgency-score based jika tidak ada keyword yang cocok
     scores = dict(zip(FEATURE_COLS, hitung_urgensi(teks_clean)[0]))
-    best_tipe  = 'Umum / Tidak Terklasifikasi'
     best_score = 0.0
+    best_tipe  = 'Kriminalitas Umum'
     for tipe, feats, weight in _TIPE_WEIGHTS:
         score = sum(scores.get(f, 0.0) for f in feats) * weight
         if score > best_score:
@@ -134,7 +216,7 @@ def tentukan_tipe_kejahatan(teks_clean: str) -> str:
 def compute_shap_explanation(teks_input: str) -> dict:
     """Hitung SHAP values + tipe kejahatan untuk satu teks laporan."""
     teks_clean = bersihkan_teks(teks_input)
-    tipe = tentukan_tipe_kejahatan(teks_clean)
+    tipe = tentukan_tipe_kejahatan(teks_clean, teks_original=teks_input)
 
     if not _HAS_SHAP or _explainer is None:
         return {"tipe_kejahatan": tipe, "shap_features": [], "base_value": 0.0}
