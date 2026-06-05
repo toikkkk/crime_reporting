@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```
 User isi form (3 step) → POST /api/laporan → jalankan_pipeline_ml() →
-GBR regression → skor 0-100 → kategori Tinggi/Sedang/Rendah →
+ExtraTreesRegressor → skor 0-100 → kategori Tinggi/Sedang/Rendah →
 simpan ke Supabase → tampil di dashboard admin
 ```
 
@@ -99,7 +99,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000          # dipakai frontend Docker ima
 - **python-jose** + **passlib[bcrypt]** untuk auth (belum diimplementasikan)
 
 ### ML
-- **Pipeline Hybrid** — Feature Union (TF-IDF 3000 + 7 urgency scores) → GradientBoostingRegressor
+- **Pipeline Hybrid** — Feature Union (TF-IDF 3000 + 7 urgency scores) → ExtraTreesRegressor
 - **Sastrawi** untuk Indonesian stemming
 - **SHAP** (`shap==0.46.0`) — TreeExplainer di-init sekali saat server start untuk `/api/explain`
 - **File model:** `model_final.pkl`, `vectorizer.pkl`, `model_metadata.json`  
@@ -230,7 +230,9 @@ Didefinisikan di `globals.css` via `@theme { --color-ink: ...; --color-alert: ..
 ## 6. ML PIPELINE
 
 ### Dataset
-- 2.413 baris data real dari scraping berita kriminal (SMOTE hanya dipakai di notebook lama)
+- 2.413 baris data real dari scraping berita kriminal → KMeans labeling (unsupervised)
+- 600 baris synthetic user reports → risk_score manual (balanced: 200 per kategori)
+- **Total supervised training: 3.013 baris**
 - Label lama (dari keyword scraping) di-drop — label baru dihasilkan oleh clustering unsupervised
 
 ### Pipeline (notebook: `notebooks/04_hybrid_risk_scoring.ipynb`)
@@ -245,19 +247,21 @@ Didefinisikan di `globals.css` via `@theme { --color-ink: ...; --color-alert: ..
 
 **Tahap 2 — Supervised Regression:**
 1. Feature Union: TF-IDF(3000 features, ngram 1–3) + 7 urgency scores → `(n, 3007)` matrix
-2. GradientBoostingRegressor (Optuna 30 trials, minimize RMSE)
-3. Hasil: R² test=0.91, MAE=0.79, RMSE=2.59
+2. PyCaret komparasi semua algoritma → **ExtraTreesRegressor** menang
+3. Optuna (30 trials, minimize RMSE) → best CV RMSE: 3.6956
+4. Hasil: R² test=**0.9579**, MAE=**2.13**, RMSE=**4.21**
 
 ### Inference Production (`backend/app/ml/preprocessor.py`)
 ```
 teks_input
   → bersihkan_teks()        # lowercase + regex [^a-z\s] + Sastrawi stem
   → vectorizer.transform()  # TF-IDF (3000)
-  → hitung_urgensi()        # 7 urgency scores (log1p word count)
+  → hitung_urgensi()        # 7 urgency scores (count/total_words — sama dengan training)
   → hstack()                # Feature Union (3007)
-  → model_final.predict()   # GBR → clip [0, 100]
+  → model_final.predict()   # ExtraTrees → clip [0, 100]
   → POST-PROCESSING LAYER:
       • SAFE_CONTEXT suppressor  # skor ×0.5 jika ada kata: mainan, toko, beli, dll.
+      • ADMIN_SIGNALS cap        # kehilangan KTP/SIM/paspor → cap Rendah
       • Keyword floor rule       # _kw_match() — word-exact (bukan substring!)
           critical_hit ≥ 3 → floor Tinggi
           critical_hit ≥ 2 atau total_hit ≥ 3 → floor Sedang
