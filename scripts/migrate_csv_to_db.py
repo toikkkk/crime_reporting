@@ -1,17 +1,3 @@
-"""
-migrate_csv_to_db.py
-====================
-Script migrasi data dari dataset_siap_training.csv ke PostgreSQL.
-Bisa dijalankan ke database lokal (Docker) atau Supabase.
-
-Usage:
-    # Local Docker
-    python scripts/migrate_csv_to_db.py --env local
-
-    # Supabase Production
-    python scripts/migrate_csv_to_db.py --env production
-"""
-
 import os
 import sys
 import argparse
