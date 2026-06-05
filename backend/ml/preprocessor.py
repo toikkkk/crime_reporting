@@ -52,9 +52,10 @@ def bersihkan_teks(teks: str) -> str:
     return stemmer.stem(teks)
 
 def hitung_urgensi(teks_clean: str) -> list:
-    """Menghitung 7 skor urgensi berdasarkan kamus (log1p — length-invariant)."""
+    """Menghitung 7 skor urgensi berdasarkan kamus (count/total_words — sama dengan training)."""
     words = teks_clean.split()
-    return [[float(np.log1p(sum(words.count(kw) for kw in URGENCY_SIGNALS[fitur]))) for fitur in FEATURE_COLS]]
+    total_words = max(len(words), 1)
+    return [[float(sum(words.count(kw) for kw in URGENCY_SIGNALS[fitur])) / total_words for fitur in FEATURE_COLS]]
 
 SAFE_CONTEXT = {
     'mainan', 'beli', 'toko', 'pasar', 'jual', 'koleksi',
