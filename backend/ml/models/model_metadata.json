@@ -1,7 +1,7 @@
 {
-    "model_type": "GradientBoostingRegressor_FeatureUnion",
-    "r2_test_score": 0.9045213098488583,
-    "mae_test_score": 0.8096878616246987,
+    "model_type": "ExtraTreesRegressor_FeatureUnion",
+    "r2_test_score": 0.9579490099366395,
+    "mae_test_score": 2.1288312914975394,
     "feature_count": 3007,
     "urgency_signals": {
         "skor_kematian": [

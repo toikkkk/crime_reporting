@@ -32,11 +32,13 @@ docker-compose logs backend
 
 ### Backend (local dev)
 ```bash
-# Dari root project (Windows):
-.\backend\venv311\Scripts\activate
-uvicorn app.main:app --reload --port 8000 --app-dir backend
+# Dari root project (Windows) — WAJIB cd ke backend dulu:
+.\venv311\Scripts\activate
+cd backend
+uvicorn app.main:app --reload --port 8000
 # One-time setup: python -c "import nltk; nltk.download('stopwords')"
 ```
+> **PENTING:** Jangan pakai `--app-dir backend` dari root — subprocess reloader Windows tidak mewarisi path tersebut → `ModuleNotFoundError: No module named 'app'`. Solusinya selalu `cd backend` dulu.
 API docs: `http://localhost:8000/docs`
 
 ### Frontend (local dev)
@@ -119,9 +121,9 @@ app/
 │                    # Supabase client dari db/client.py (sudah dipakai).
 ├── core/config.py   # Settings via pydantic-settings.
 ├── db/client.py     # Supabase client singleton — dipakai main.py.
-├── ml/
+├── ml/ (di backend/ml/, BUKAN backend/app/ml/)
 │   └── preprocessor.py   # Pipeline inference + post-processing + SHAP explainer.
-│                          # MODEL_DIR → backend/ml/models/ (dua level ke atas dari sini)
+│                          # MODEL_DIR = os.path.join(BASE_DIR, "models") → backend/ml/models/
 ├── api/             # Scaffold kosong
 ├── schemas/         # Scaffold kosong
 └── services/        # Scaffold kosong
@@ -147,6 +149,9 @@ app/
 │       ├── page.tsx            # Dashboard admin — fetch real dari GET /api/laporan.
 │       │                       # Modal membuka POST /api/explain (SHAP + tipe kejahatan).
 │       │                       # Polling otomatis setiap 10 detik.
+│       ├── LeafletMap.tsx      # Peta interaktif (react-leaflet). WAJIB dynamic import
+│       │                       # dengan ssr: false — tidak boleh di-SSR.
+│       │                       # Geocoding via CITY_COORDS lookup (bukan API eksternal).
 │       └── dashboard.css       # CSS khusus dashboard + tipe-badge + shap chart styles
 └── components/
     ├── ThemeProvider.tsx        # Context dark mode + curtain animation
@@ -287,16 +292,26 @@ teks_input
 ```
 
 ### Klasifikasi Tipe Kejahatan (`tentukan_tipe_kejahatan`)
-Score-based (bukan first-match). Kategori dengan weighted urgency score tertinggi menang:
+**Dua tahap:** keyword-based (prioritas) → fallback urgency score.
+
+**Tahap 1 — Keyword matching (`_CRIME_TYPE_KEYWORDS`, 12 kategori):**
+Menghitung jumlah keyword yang cocok per kategori; kategori dengan count terbanyak menang.
+Dijalankan pada `teks_original.lower() + ' ' + teks_clean` (kombinasi asli + sudah stem).
+Kategori: Pembunuhan / Penganiayaan Berat, Perampokan Bersenjata, Tawuran / Kerusuhan Massa,
+Penganiayaan / Kekerasan Fisik, Kejahatan Senjata Berbahaya, Pencurian Kendaraan,
+Pencurian / Pencopetan, Balap Liar / Gangguan Lalu Lintas, Penipuan / Kejahatan Siber,
+Vandalisme / Perusakan Properti, Sengketa / Perselisihan Perdata, Laporan Kehilangan / Administrasi.
+
+**Tahap 2 — Urgency-score fallback (jika tidak ada keyword cocok):**
 ```
 Pembunuhan / Penganiayaan  → skor_kematian         × 1.5
 Senjata Berbahaya          → skor_senjata           × 1.5
 Kekerasan Fisik            → skor_kekerasan_fisik   × 1.2
-Perampokan / Pencurian     → skor_perampasan_paksa
-                             + skor_harta            × 1.3
+Perampokan / Pencurian     → skor_perampasan_paksa + skor_harta × 1.3
 Pidana Berat               → skor_pidana_berat      × 1.0
 Kriminalitas Ringan        → skor_ringan             × 1.0
 ```
+Default fallback jika semua skor = 0: `'Kriminalitas Umum'`.
 
 ---
 
@@ -304,14 +319,15 @@ Kriminalitas Ringan        → skor_ringan             × 1.0
 
 ### Endpoint yang sudah berjalan
 ```
-GET  /                              → health check
-POST /api/laporan                   → terima laporan, jalankan ML, simpan ke Supabase
-GET  /api/laporan                   → list semua laporan + stats (total, tinggi, aktif, selesai)
-GET  /api/laporan/{ticket_id}       → detail satu laporan
-PATCH /api/laporan/{ticket_id}/status → update status laporan
-POST /api/laporan/{ticket_id}/foto  → upload foto bukti ke Supabase Storage
-GET  /api/laporan/{ticket_id}/foto  → list foto bukti
-POST /api/explain                   → SHAP values + tipe kejahatan (on-demand, tidak disimpan ke DB)
+GET  /                                    → health check
+POST /api/laporan                         → terima laporan, jalankan ML, simpan ke Supabase
+GET  /api/laporan                         → list semua laporan + stats (total, tinggi, aktif, selesai)
+GET  /api/laporan/{ticket_id}             → detail satu laporan
+PATCH /api/laporan/{ticket_id}/status     → update status laporan (valid: Diterima/Dianalisis/Dalam Penyelidikan/Selesai/Ditolak)
+PATCH /api/laporan/{ticket_id}/catatan    → update catatan_petugas (field: {"catatan": "string"})
+POST /api/laporan/{ticket_id}/foto        → upload foto bukti ke Supabase Storage
+GET  /api/laporan/{ticket_id}/foto        → list foto bukti
+POST /api/explain                         → SHAP values + tipe kejahatan (on-demand, tidak disimpan ke DB)
 ```
 
 ### Request `POST /api/laporan`

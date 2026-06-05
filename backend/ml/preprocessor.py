@@ -29,7 +29,7 @@ try:
     THR_TINGGI = metadata.get('threshold_tinggi', 67.0)
     THR_SEDANG = metadata.get('threshold_sedang', 34.0)
 
-    # SHAP explainer — init sekali saat server start
+    # SHAP explainer
     try:
         import shap as _shap
         _explainer = _shap.TreeExplainer(model_final)
@@ -61,6 +61,21 @@ SAFE_CONTEXT = {
     'replika', 'hiasan', 'hadiah', 'souvenir', 'pajang',
 }
 
+PUBLIC_RISK_SIGNALS = [
+    'balap liar', 'trek liar', 'geng motor', 'kebut-kebutan',
+    'tawuran', 'tawur', 'bentrok massa', 'kerusuhan', 'anarkis',
+    'gerombolan', 'kawanan', 'massa menyerang', 'blokade jalan',
+    'tutup jalan', 'menutup jalan', 'sweeping', 'premanisme',
+]
+
+PROPERTY_CRIME_SIGNALS = [
+    'dibobol', 'jebol', 'rumah dibobol', 'kos dibobol', 'kontrakan dibobol',
+    'motor hilang', 'mobil hilang', 'kendaraan hilang', 'motor raib', 'mobil raib',
+    'dicopet', 'dijambret', 'tas dirampas', 'hp dirampas', 'dompet dirampas',
+    'curanmor', 'curas', 'curat', 'pembobolan', 'motor dicuri', 'mobil dicuri',
+    'kehilangan motor', 'kehilangan mobil',
+]
+
 ACTIVE_SIGNALS = [
     # situasi sedang berlangsung
     'sedang berlangsung', 'masih berlangsung', 'sedang terjadi',
@@ -84,20 +99,13 @@ ACTIVE_SIGNALS = [
     'todong', 'ancam', 'sembunyi',
 ]
 
-PUBLIC_RISK_SIGNALS = [
-    'balap liar', 'tawuran', 'gerombolan', 'kerumunan massa',
-    'menutup jalan', 'blokade jalan', 'blokir jalan',
-    'anarkis', 'rusuh', 'bentrok',
-    'meresahkan warga', 'meresahkan masyarakat',
-    'premanisme', 'geng motor',
-]
-
-PROPERTY_CRIME_SIGNALS = [
-    'motor dicuri', 'mobil dicuri', 'kendaraan dicuri',
-    'motor hilang', 'mobil hilang', 'kehilangan motor', 'kehilangan mobil',
-    'dicopet', 'dijambret', 'dibobol', 'dijebol',
-    'hp dicuri', 'laptop dicuri', 'dompet dicuri', 'tas dicuri',
-]
+ADMIN_SIGNALS = {
+    'kehilangan ktp', 'kehilangan sim', 'kehilangan bpkb',
+    'kehilangan paspor', 'kehilangan ijazah', 'surat kehilangan',
+    'keperluan administrasi', 'buat surat keterangan',
+    'surat keterangan kehilangan', 'penggantian ktp', 'penggantian sim',
+    'laporan kehilangan untuk', 'blokir atm', 'pemblokiran atm',
+}
 
 URGENCY_LABEL: dict[str, str] = {
     'skor_kematian':         'Sinyal Kematian',
@@ -187,13 +195,15 @@ def _kw_match(kw: str, teks_clean: str, words_set: set) -> bool:
 
 def tentukan_tipe_kejahatan(teks_clean: str, teks_original: str = '') -> str:
     """Klasifikasi tipe kejahatan: keyword-based (prioritas) + fallback urgency score."""
-    teks_lower   = teks_original.lower() if teks_original else ''
+    teks_lower    = teks_original.lower() if teks_original else ''
     teks_combined = teks_lower + ' ' + teks_clean
+    words_combined = set(teks_combined.split())
 
     best_tipe  = None
     best_count = 0
     for tipe, keywords in _CRIME_TYPE_KEYWORDS:
-        count = sum(1 for kw in keywords if kw in teks_combined)
+        # Wajib pakai _kw_match() — "api" in "tapi" adalah True di Python → false positive
+        count = sum(1 for kw in keywords if _kw_match(kw, teks_combined, words_combined))
         if count > best_count:
             best_count = count
             best_tipe  = tipe
@@ -252,47 +262,48 @@ def jalankan_pipeline_ml(teks_input: str):
     teks_lower = teks_input.lower()
     words_set  = set(teks_clean.split())
 
-    X_tfidf  = vectorizer.transform([teks_clean])
+    X_tfidf   = vectorizer.transform([teks_clean])
     X_urgensi = hitung_urgensi(teks_clean)
-    X_final  = hstack([X_tfidf, sp.csr_matrix(X_urgensi)])
+    X_final   = hstack([X_tfidf, sp.csr_matrix(X_urgensi)])
 
-    skor_raw   = model_final.predict(X_final)[0]
-    skor_final = float(np.clip(skor_raw, 0.0, 100.0))
+    skor_final = float(np.clip(model_final.predict(X_final)[0], 0.0, 100.0))
 
-    is_safe = any(w in words_set for w in SAFE_CONTEXT)
-    if is_safe:
+    # SAFE_CONTEXT: teks menyebut konteks aman (beli/toko/pasar) → tekan skor
+    if any(w in words_set for w in SAFE_CONTEXT):
         skor_final *= 0.5
 
-    CRITICAL_FEATURES = {'skor_kematian', 'skor_senjata', 'skor_kekerasan_fisik', 'skor_perampasan_paksa'}
-    critical_hit = sum(
-        1 for feat in CRITICAL_FEATURES
-        if any(_kw_match(kw, teks_clean, words_set) for kw in URGENCY_SIGNALS[feat])
+    # ADMIN_SIGNALS: laporan kehilangan dokumen administratif → cap Rendah
+    if any(sig in teks_lower for sig in ADMIN_SIGNALS):
+        skor_final = min(skor_final, THR_SEDANG - 1)
+
+    # KEYWORD FLOOR RULE: hitung keyword kritis dari URGENCY_SIGNALS
+    # Gunakan _kw_match() bukan substring — hindari false positive "api" in "tapi"
+    critical_keywords = (
+        URGENCY_SIGNALS['skor_kematian'] +
+        URGENCY_SIGNALS['skor_senjata'] +
+        URGENCY_SIGNALS['skor_kekerasan_fisik']
     )
-    total_hit = sum(
-        1 for feat, kws in URGENCY_SIGNALS.items()
-        if feat != 'skor_ringan' and any(_kw_match(kw, teks_clean, words_set) for kw in kws)
+    other_keywords = (
+        URGENCY_SIGNALS['skor_perampasan_paksa'] +
+        URGENCY_SIGNALS['skor_pidana_berat']
     )
-    has_public_risk    = any(sig in teks_lower for sig in PUBLIC_RISK_SIGNALS)
-    has_property_crime = any(sig in teks_lower for sig in PROPERTY_CRIME_SIGNALS)
+    critical_hit = sum(1 for kw in critical_keywords if _kw_match(kw, teks_clean, words_set))
+    total_hit    = critical_hit + sum(1 for kw in other_keywords if _kw_match(kw, teks_clean, words_set))
 
-    thr_crit  = 4 if is_safe else 3
-    thr_mixed = 3 if is_safe else 2
-    thr_total = 4 if is_safe else 3
-
-    if critical_hit >= thr_crit:
-        floor = 'Tinggi'
-    elif critical_hit >= thr_mixed or total_hit >= thr_total:
-        floor = 'Sedang'
-    elif (has_public_risk or has_property_crime) and not is_safe:
-        floor = 'Sedang'
-    else:
-        floor = None
-
-    if floor == 'Tinggi':
+    if critical_hit >= 3:
         skor_final = max(skor_final, THR_TINGGI)
-    elif floor == 'Sedang':
+    elif critical_hit >= 2 or total_hit >= 3:
         skor_final = max(skor_final, THR_SEDANG)
 
+    # PUBLIC_RISK_SIGNALS: balap liar, tawuran, gerombolan → floor Sedang
+    if any(sig in teks_lower for sig in PUBLIC_RISK_SIGNALS):
+        skor_final = max(skor_final, THR_SEDANG)
+
+    # PROPERTY_CRIME_SIGNALS: dibobol, motor hilang, dicopet → floor Sedang
+    if any(sig in teks_lower for sig in PROPERTY_CRIME_SIGNALS):
+        skor_final = max(skor_final, THR_SEDANG)
+
+    # ACTIVE_SIGNALS: situasi darurat aktif / ada korban → paksa Tinggi
     if any(sig in teks_lower for sig in ACTIVE_SIGNALS):
         skor_final = max(skor_final, THR_TINGGI)
 
